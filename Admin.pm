@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.4 1999/03/05 03:52:00 eric Exp $
+# $Id: Admin.pm,v 1.5 1999/03/13 01:14:05 eric Exp $
 
 package IMAP::Admin;
 
@@ -19,7 +19,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '0.7.0';
+$VERSION = '0.8.1';
 
 sub new {
     my $class = shift;
@@ -71,6 +71,9 @@ sub _initialize {
     print $fh "try CAPABILITY\n";
     $_ = <$fh>;
     chomp;
+    if (/\r$/) {
+	chop;
+    }
     $self->{'Capability'} = $_;
     $_ = <$fh>;
     if (!/^try OK/) {
@@ -154,9 +157,9 @@ sub delete {
     }
 }
 
-sub get_quota { # returns a hash or undef
+sub get_quota { # returns an array or undef
     my $self = shift;
-    my (%quota, @info);
+    my (@quota, @info);
 
     if (!($self->{'Capability'} =~ /QUOTA/)) {
 	$self->_error("get_quota", "QUOTA not listed in server's capabilities");
@@ -174,14 +177,20 @@ sub get_quota { # returns a hash or undef
     my $fh = $self->{'Socket'};
     print $fh "try GETQUOTA $mailbox\n";
     $_ = <$fh>;
+    while ((/\r$/) || (/\n$/)) {
+      chop;
+    }
     while (/^\* QUOTA/) {
 	tr/\)\(//d;
-	@info = (split(' '))[2,5];
-	$quota{$info[0]} = $info[1];
+	@info = (split(' '))[2,4,5];
+	push @quota, @info;
 	$_ = <$fh>;
+        while ((/\r$/) || (/\n$/)) {
+          chop;
+        }
     }
     if (/^try OK/) {
-	return %quota;
+	return @quota;
     } else {
 	$self->_error("get_quota", "couldn't get quota for", $mailbox, ":", $_);
 	return;
@@ -217,9 +226,9 @@ sub set_quota {
     }
 }
 
-sub get_acl { # returns a hash or undef
+sub get_acl { # returns an array or undef
     my $self = shift;
-    my (@info, %acl, $item);
+    my (@info, @acl_item, @acl, $item);
 
     if (!($self->{'Capability'} =~ /ACL/)) {
 	$self->_error("get_acl", "ACL not listed in server's capabilities");
@@ -237,13 +246,20 @@ sub get_acl { # returns a hash or undef
     my $fh = $self->{'Socket'};
     print $fh "try GETACL $mailbox\n";
     $_ = <$fh>;
+    while ((/\r$/) || (/\n$/)) {
+	chop;
+    }
     while (/^\* ACL/) {
 	@info = split(' ',$_,4);
-	$acl{$info[2]} = $info[3];
+        @acl_item = split(' ',$info[3]);
+	push @acl, @acl_item;
 	$_ = <$fh>;
+        while ((/\r$/) || (/\n$/)) {
+	    chop;
+        }
     }
     if (/^try OK/) {
-	return %acl;
+	return @acl;
     } else {
 	$self->_error("get_acl", "couldn't get acl for", $mailbox, ":", $_);
 	return;
@@ -334,10 +350,17 @@ sub list { # wild cards are allowed, returns array or undef
     my $fh = $self->{'Socket'};
     print $fh "try LIST $list $list\n";
     $_ = <$fh>;
+    while ((/\r$/) || (/\n$/)) {
+      chop;
+    }
     while (/\* /) { # danger danger (could lock up needs timeout)
 	@info = split(' ');
+        $info[$#info] =~ tr/\"//d; # " balance quotes for emacs
 	push @mail, $info[$#info];
 	$_ = <$fh>;
+        while ((/\r$/) || (/\n$/)) {
+          chop;
+        }
     }
     if (/^try OK/) {
 	return @mail;
@@ -372,10 +395,10 @@ IMAP::Admin - Perl module for basic IMAP server administration
   }
   $err = $imap->delete("user.bob");
 
-  %quota = $imap->get_quota("user.bob");
+  @quota = $imap->get_quota("user.bob");
   $err = $imap->set_quota("user.bob", 10000);
 
-  %acl = $imap->get_acl("user.bob");
+  @acl = $imap->get_acl("user.bob");
   $err = $imap->set_acl("user.bob", "admin", "lrswipdca", "joe", "lrs");
   $err = $imap->delete_acl("user.bob", "joe", "admin");
  
@@ -383,6 +406,8 @@ IMAP::Admin - Perl module for basic IMAP server administration
   @list = $imap->list("user.b*");
 
   $imap->{'Capability'} # this contains the Capabilities reply from the IMAP server
+
+  $imap->close; # close open imap connection
 
 =head1 DESCRIPTION
 
@@ -413,7 +438,10 @@ Currently create and delete only take one argument.  This will probably change i
 
 NOT RFC2060 commands.  I believe these are specific to Cyrus IMAP.
 
-get_quota retrieves quota information.  It returns a hash on success and undef on failure.  In the event of a failure the error is place in the object->{'Error'} variable.
+get_quota retrieves quota information.  It returns an array on success and undef on failure.  In the event of a failure the error is place in the object->{'Error'} variable.  The array has three elements for each item in the quota. 
+$quota[0] <- mailbox name
+$quota[1] <- quota amount used in kbytes
+$quota[2] <- quota in kbytes
 
 get_quota takes only one argument, but this will probably change to multiple and/or wildcard matching.
 
@@ -424,7 +452,10 @@ set_quota returns a 0 on success or a 1 on failure.  An error message is placed 
 
 NOT RFC2060 commands.  I believe these are specific to Cyrus IMAP.
 
-get_acl retrieves acl information.  It returns a hash on success and under on failure.  In the event of a failure the error is placed in the object->{'Error'} variable.
+get_acl retrieves acl information.  It returns an array on success and under on failure.  In the event of a failure the error is placed in the object->{'Error'} variable. The array contains a pair for each person who has an acl on this mailbox
+$acl[0] user who has acl information
+$acl[1] acl information
+$acl[2] next user ...
 
 set_acl set acl information for a single mailbox.  You can specify more the one user's rights on the same set call.  It returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure.
 
@@ -443,7 +474,7 @@ Currently all the of the socket traffic is handled via prints and <>.  This mean
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.4 1999/03/05 03:52:00 eric Exp $
+$Id: Admin.pm,v 1.5 1999/03/13 01:14:05 eric Exp $
 
 =head1 AUTHOR
 

@@ -5,3 +5,8 @@ Revision history for Perl extension IMAP::Admin.
 
 0.7.0 Thu Mar 03 03:46:18 1999
 	- added capabilites checking and enhanced test procedure
+
+0.8.0 Fri Mar 11 whenver 1999
+	- changed get_quota and get_acl interfaces to have output
+	  that can be given as input to respective sets
+	- updated documentation
