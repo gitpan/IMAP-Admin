@@ -44,3 +44,10 @@ Revision history for Perl extension IMAP::Admin.
 
 1.2.1 Thu Mar 02 12:04:13 2000
 	- added none option to set_quota to set the quota to none
+
+1.2.2 Sun Mar 12 21:16:38 2000
+	- Added a license line for the debian folks, This module is distributed
+	  under the Artistic license which is now included in the module
+	  package (its the same as the perl license)
+	  If you do use this is a product just drop me a line and let me know,
+	  curiosity kills my cat.

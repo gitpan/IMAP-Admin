@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.16 2000/03/02 18:09:13 eric Exp $
+# $Id: Admin.pm,v 1.18 2000/03/13 03:24:41 eric Exp $
 
 package IMAP::Admin;
 
@@ -10,7 +10,7 @@ use Text::ParseWords qw(quotewords);
 
 use vars qw($VERSION);
 
-$VERSION = '1.2.1';
+$VERSION = '1.2.2';
 
 sub new {
     my $class = shift;
@@ -509,9 +509,13 @@ The access control information is from Cyrus IMAP.
 
 Currently all the of the socket traffic is handled via prints and <>.  This means that some of the calls could hang if the socket connection is broken.  Eventually the will be properly selected and timed.
 
+=head1 LICENSE
+
+This is licensed under the Artistic license (same as perl).  A copy of the license is included in this package.  The file is called Artistic.  If you use this in a product or distribution drop me a line, 'cause I am always curious about that...
+
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.16 2000/03/02 18:09:13 eric Exp $
+$Id: Admin.pm,v 1.18 2000/03/13 03:24:41 eric Exp $
 
 =head1 AUTHOR
 
