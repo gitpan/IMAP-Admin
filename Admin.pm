@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.14 1999/11/23 01:44:39 eric Exp $
+# $Id: Admin.pm,v 1.15 2000/03/02 17:30:41 eric Exp $
 
 package IMAP::Admin;
 
@@ -8,19 +8,9 @@ use IO::Select;
 use IO::Socket;
 use Text::ParseWords qw(quotewords);
 
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
+use vars qw($VERSION);
 
-require Exporter;
-require AutoLoader;
-
-@ISA = qw(Exporter AutoLoader);
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
-@EXPORT = qw(
-	
-);
-$VERSION = '1.0.1';
+$VERSION = '1.2.0';
 
 sub new {
     my $class = shift;
@@ -42,7 +32,7 @@ sub new {
 
 sub _initialize {
     my $self = shift;
-
+    
     if (!defined($self->{'Server'})) {
 	croak "$self->{'CLASS'} not initialized properly : Server parameter missing";
     }
@@ -64,31 +54,31 @@ sub _initialize {
 	croak "$self->{'CLASS'} couldn't establish a connection to $self->{'Server'}";
     }
     my $fh = $self->{'Socket'};
-    $_ = <$fh>; # get Banner
-    if (!/\* OK/) {
+    my $try = <$fh>; # get Banner
+    if ($try !~ /\* OK/) {
 	$self->close;
+	print "try = [$try]\n";
 	croak "$self->{'CLASS'}: Connection to $self->{'Server'} bad/no response: $!";
     }
     print $fh "try CAPABILITY\n";
-    $_ = <$fh>;
-    chomp;
-    if (/\r$/) {
-	chop;
+    chomp ($try = <$fh>);
+    if ($try =~ /\r$/) {
+	chop($try);
     }
-    $self->{'Capability'} = $_;
-    $_ = <$fh>;
-    if (!/^try OK/) {
+    $self->{'Capability'} = $try;
+    $try = <$fh>;
+    if ($try !~ /^try OK/) {
 	croak "$self->{'CLASS'}: Couldn't do capabilites check";
     }
-    print $fh "try LOGIN $self->{'Login'} $self->{'Password'}\n";
-    $_ = <$fh>;
-    if (/Login incorrect/) {
+    print $fh qq{try LOGIN "$self->{'Login'}" "$self->{'Password'}"\n};
+    $try = <$fh>;
+    if ($try =~ /Login incorrect/) {
 	$self->close;
 	croak "$self->{'CLASS'}: Login incorrect while connecting to $self->{'Server'}";
-    } elsif (/^try OK/) {
+    } elsif ($try =~ /^try OK/) {
 	return;
     } else {
-	croak "$self->{'CLASS'}: Unknown error -- $_";
+	croak "$self->{'CLASS'}: Unknown error -- $try";
     }
 }
 
@@ -103,9 +93,9 @@ sub _error {
 sub close {
     my $self = shift;
     my $fh = $self->{'Socket'};
-    
+
     print $fh "try logout\n";
-    $_ = <$fh>;
+    my $try = <$fh>;
     close($self->{'Socket'});
     delete $self->{'Socket'};
 }
@@ -124,16 +114,16 @@ sub create {
     }
     my $fh = $self->{'Socket'};
     if (scalar(@_) == 1) { # a partition exists
-	print $fh "try CREATE $mailbox $_[0]\n";
+	print $fh qq{try CREATE "$mailbox" $_[0]\n};
     } else {
-	print $fh "try CREATE $mailbox\n";
+	print $fh qq{try CREATE "$mailbox"\n};
     }
-    $_ = <$fh>;
-    if (/^try OK/) {
+    my $try = <$fh>;
+    if ($try =~ /^try OK/) {
 	$self->{'Error'} = 'No Errors';
 	return 0;
     } else {
-	$self->_error("create", "couldn't create", $mailbox, ":", $_);
+	$self->_error("create", "couldn't create", $mailbox, ":", $try);
 	return 1;
     }
 }
@@ -152,12 +142,12 @@ sub delete {
     }
     my $fh = $self->{'Socket'};
     print $fh "try DELETE $mailbox\n";
-    $_ = <$fh>;
-    if (/^try OK/) {
+    my $try = <$fh>;
+    if ($try =~ /^try OK/) {
 	$self->{'Error'} = 'No Errors';
 	return 0;
     } else {
-	$self->_error("delete", "couldn't delete", $mailbox, ":", $_);
+	$self->_error("delete", "couldn't delete", $mailbox, ":", $try);
 	return 1;
     }
 }
@@ -179,24 +169,24 @@ sub get_quotaroot { # returns an array or undef
 	return 1;
     }
     my $fh = $self->{'Socket'};
-    print $fh "try GETQUOTAROOT $mailbox\n";
-    $_ = <$fh>;
-    while ((/\r$/) || (/\n$/)) {
-      chop;
+    print $fh qq{try GETQUOTAROOT "$mailbox"\n};
+    my $try = <$fh>;
+    while ($try =~ /[\r\n]$/) {
+      chop($try);
     }
-    while (/^\* QUOTA/) {
-	tr/\)\(//d;
-	@info = (split(' '))[2,4,5];
+    while ($try = /^\* QUOTA/) {
+	$try =~ tr/\)\(//d;
+	@info = (split(' ', $try))[2,4,5];
 	push @quota, @info;
-	$_ = <$fh>;
-        while ((/\r$/) || (/\n$/)) {
-          chop;
+	$try = <$fh>;
+        while ($try =~ /[\r\n]$/) {
+          chop($try);
         }
     }
-    if (/^try OK/) {
+    if ($try =~ /^try OK/) {
 	return @quota;
     } else {
-	$self->_error("get_quotaroot", "couldn't get quota for", $mailbox, ":", $_);
+	$self->_error("get_quotaroot", "couldn't get quota for", $mailbox, ":", $try);
 	return;
     }
 }
@@ -219,24 +209,24 @@ sub get_quota { # returns an array or undef
 	return 1;
     }
     my $fh = $self->{'Socket'};
-    print $fh "try GETQUOTA $mailbox\n";
-    $_ = <$fh>;
-    while ((/\r$/) || (/\n$/)) {
-      chop;
+    print $fh qq{try GETQUOTA "$mailbox"\n};
+    my $try = <$fh>;
+    while ($try =~ /[\r\n]$/) {
+      chop($try);
     }
-    while (/^\* QUOTA/) {
-	tr/\)\(//d;
-	@info = (split(' '))[2,4,5];
+    while ($try =~ /^\* QUOTA/) {
+	$try =~ tr/\)\(//d;
+	@info = (split(' ',$try))[2,4,5];
 	push @quota, @info;
-	$_ = <$fh>;
-        while ((/\r$/) || (/\n$/)) {
-          chop;
+	$try = <$fh>;
+        while ($try =~ /[\r\n]$/) {
+          chop($try);
         }
     }
-    if (/^try OK/) {
+    if ($try =~ /^try OK/) {
 	return @quota;
     } else {
-	$self->_error("get_quota", "couldn't get quota for", $mailbox, ":", $_);
+	$self->_error("get_quota", "couldn't get quota for", $mailbox, ":", $try);
 	return;
     }
 }
@@ -259,13 +249,13 @@ sub set_quota {
 	return 1;
     }
     my $fh = $self->{'Socket'};
-    print $fh "try SETQUOTA $mailbox (STORAGE $quota)\n";
-    $_ = <$fh>;
-    if (/^try OK/) {
+    print $fh qq{try SETQUOTA "$mailbox" (STORAGE $quota)\n};
+    my $try = <$fh>;
+    if ($try =~ /^try OK/) {
 	$self->{'Error'} = "No Errors";
 	return 0;
     } else {
-	$self->_error("set_quota", "couldn't set quota for", $mailbox, ":", $_);
+	$self->_error("set_quota", "couldn't set quota for", $mailbox, ":", $try);
 	return 1;
     }
 }
@@ -289,23 +279,23 @@ sub get_acl { # returns an array or undef
     }
     my $fh = $self->{'Socket'};
     print $fh "try GETACL $mailbox\n";
-    $_ = <$fh>;
-    while ((/\r$/) || (/\n$/)) {
-	chop;
+    my $try = <$fh>;
+    while ($try =~ /[\r\n]$/) {
+	chop($try);
     }
-    while (/^\* ACL/) {
-	@info = split(' ',$_,4);
+    while ($try =~ /^\* ACL/) {
+	@info = split(' ',$try,4);
         @acl_item = split(' ',$info[3]);
 	push @acl, @acl_item;
-	$_ = <$fh>;
-        while ((/\r$/) || (/\n$/)) {
-	    chop;
+	$try = <$fh>;
+        while ($try =~ /[\r\n]$/) {
+	    chop($try);
         }
     }
-    if (/^try OK/) {
+    if ($try =~ /^try OK/) {
 	return @acl;
     } else {
-	$self->_error("get_acl", "couldn't get acl for", $mailbox, ":", $_);
+	$self->_error("get_acl", "couldn't get acl for", $mailbox, ":", $try);
 	return;
     }
 }
@@ -335,11 +325,11 @@ sub set_acl {
     while(@_) {
 	$id = shift;
 	$acl = shift;
-	print $fh "try SETACL $mailbox $id $acl\n";
-	$_ = <$fh>;
-	if (!/^try OK/) {
+	print $fh qq{try SETACL "$mailbox" "$id" "$acl"\n};
+	my $try = <$fh>;
+	if ($try !~ /^try OK/) {
 	    $self->_error("set_acl", "couldn't set acl for", $mailbox, $id, 
-			 $acl, ":", $_);
+			 $acl, ":", $try);
 	    return 1;
 	}
     }
@@ -367,11 +357,11 @@ sub delete_acl {
     my $fh = $self->{'Socket'};
     while(@_) {
 	$id = shift;
-	print $fh "try DELETEACL $mailbox $id\n";
-	$_ = <$fh>;
-	if (!/^try OK/) {
+	print $fh qq{try DELETEACL "$mailbox" "$id"\n};
+	my $try = <$fh>;
+	if ($try !~ /^try OK/) {
 	    $self->_error("delete_acl", "couldn't delete acl for", $mailbox,
-			  $id, $acl, ":", $_);
+			  $id, $acl, ":", $try);
 	    return 1;
 	}
     }
@@ -392,23 +382,23 @@ sub list { # wild cards are allowed, returns array or undef
 	return;
     }
     my $fh = $self->{'Socket'};
-    print $fh "try LIST \"\" \"$list\"\n";
-    $_ = <$fh>;
-    while ((/\r$/) || (/\n$/)) {
-      chop;
+    print $fh qq{try LIST "" "$list"\n};
+    my $try = <$fh>;
+    while ($try =~ /[\r\n]$/) {
+      chop($try);
     }
-    while (/\* /) { # danger danger (could lock up needs timeout)
-	@info = quotewords('\s+', 0, $_);
+    while ($try =~ /\* /) { # danger danger (could lock up needs timeout)
+	@info = quotewords('\s+', 0, $try);
 	push @mail, $info[$#info];
-	$_ = <$fh>;
-        while ((/\r$/) || (/\n$/)) {
-          chop;
+	$try = <$fh>;
+        while ($try =~ /[\r\n]$/) {
+          chop($try);
         }
     }
-    if (/^try OK/) {
+    if ($try =~ /^try OK/) {
 	return @mail;
     } else {
-	$self->_error("list", "couldn't get list for", $list, ":", $_);
+	$self->_error("list", "couldn't get list for", $list, ":", $try);
 	return;
     }
 }
@@ -458,7 +448,7 @@ IMAP::Admin - Perl module for basic IMAP server administration
 
 IMAP::Admin provides basic IMAP server adminstration.  It provides functions for creating and deleting mailboxes and setting various information such as quotas and access rights.
 
-It's interface should, in theory, work with any RFC compliant IMAP server, but I currently have only tested it against Carnegie Mellon University's Cyrus IMAP.  It does a CAPABILITY check for Cyrus specific extensions to see if they are supported.
+It's interface should, in theory, work with any RFC compliant IMAP server, but I currently have only tested it against Carnegie Mellon University's Cyrus IMAP and Mirapoint's IMAP servers.  It does a CAPABILITY check for specific extensions to see if they are supported.
 
 Operationally it opens a socket connection to the IMAP server and logs in with the supplied login and password.  You then can call any of the functions to perform their associated operation.
 
@@ -468,7 +458,7 @@ Operationally it opens a socket connection to the IMAP server and logs in with t
 RFC2060 commands.  These should work with any RFC2060 compliant IMAP mail servers.
 
 create makes new mailboxes.  Cyrus IMAP, for normal mailboxes, has the user. prefix.
-create returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure. create takes an optional second argument that is the partition to create the mailbox in (this might be a Cyrus specific extension).
+create returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure. create takes an optional second argument that is the partition to create the mailbox in (I don't know if partition is rfc or not, but it is supported by Cyrus IMAP and Mirapoint).
 
 delete destroys mailboxes.
 delete returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure.
@@ -478,7 +468,7 @@ list lists mailboxes.  list accepts wildcard matching
 
 =head2 QUOTA FUNCTIONS
 
-NOT RFC2060 commands.  I believe these are specific to Cyrus IMAP.
+NOT RFC2060 commands.  These are supported by Cyrus IMAP and Mirapoint.
 
 get_quotaroot and get_quota retrieve quota information.  They return an array on success and undef on failure.  In the event of a failure the error is place in the object->{'Error'} variable.  The array has three elements for each item in the quota. 
 $quota[0] <- mailbox name
@@ -490,7 +480,7 @@ set_quota returns a 0 on success or a 1 on failure.  An error message is placed 
 
 =head2 ACCESS CONTROL FUNCTIONS
 
-NOT RFC2060 commands.  I believe these are specific to Cyrus IMAP.
+NOT RFC2060 commands.  These are supported by Cyrus IMAP and Mirapoint.
 
 get_acl retrieves acl information.  It returns an array on success and under on failure.  In the event of a failure the error is placed in the object->{'Error'} variable. The array contains a pair for each person who has an acl on this mailbox
 $acl[0] user who has acl information
@@ -514,7 +504,7 @@ Currently all the of the socket traffic is handled via prints and <>.  This mean
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.14 1999/11/23 01:44:39 eric Exp $
+$Id: Admin.pm,v 1.15 2000/03/02 17:30:41 eric Exp $
 
 =head1 AUTHOR
 

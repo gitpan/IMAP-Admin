@@ -32,3 +32,12 @@ Revision history for Perl extension IMAP::Admin.
 	  bug/patch submitted by Paul Kranenburg
 	- fixed test.pl to hide the password, apologies to the person who sent
 	  this bug/patch 
+
+1.0.1 Don't remember
+
+1.2.0 Thu Mar 02 11:24:13 2000
+	- applied quoting fixes from mah@everybody.org this seems to have
+	  gotten rid of the lingering issues with having spaces and other such
+	  characters in folder names (thanks also for the cruft fixes :)
+	- cleaned up code and documentation
+	- added quota test

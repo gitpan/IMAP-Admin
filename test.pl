@@ -51,72 +51,90 @@ if (defined(@list)) {
 } else {
 	print "not ok 3: $imap->{'Error'}\n";
 }
-if ($imap->{'Capability'} =~ /ACL/) {
-	print "pre4: IMAP server supports ACL, setting delete permission\n";
-	$err = $imap->set_acl($testuser, $login, "d");
+if ($imap->{'Capability'} =~ /QUOTA/) {
+	print "pre4: IMAP server supports QUOTA, going to try and see if I can use them\n";
+	$err = $imap->set_quota($testuser, 10000);
 	if ($err == 0) {
 		print "ok pre4\n";
 	} else {
 		print "not ok pre4: $imap->{'Error'}\n";
 	}
+	undef @quota;
+	@quota = $imap->get_quota($testuser);
+	if (defined(@quota)) {
+		print "ok 4: quota was set (@quota)\n";
+	} else {
+		print "not ok 4: quota set failed : $imap->{'Error'}\n";
+	} 
 } else {
-	print "pre4: IMAP server doesn't support ACL, trying delete directly\n";
+	print "ok 4: IMAP server doesn't support QUOTA (this is ok 'cause it's not RFC)\n";
+}
+if ($imap->{'Capability'} =~ /ACL/) {
+	print "pre5: IMAP server supports ACL, setting delete permission\n";
+	$err = $imap->set_acl($testuser, $login, "d");
+	if ($err == 0) {
+		print "ok pre5\n";
+	} else {
+		print "not ok pre5: $imap->{'Error'}\n";
+	}
+} else {
+	print "pre5: IMAP server doesn't support ACL, trying delete directly\n";
 }
 $err = $imap->delete($testuser);
 if ($err == 0) {
-	print "ok 4\n";
+	print "ok 5\n";
 } else {
-	print "not ok 4\n";
+	print "not ok 5\n";
 }
 $err = $imap->create($testuser, "default");
 if ($err == 0) {
-	print "ok 5 : test user created with optional partition set to default\n";
+	print "ok 6 : test user created with optional partition set to default\n";
 	if ($imap->{'Capability'} =~ /ACL/) {
 		print "pre6: IMAP server supports ACL, setting delete permission\n";
 		$err = $imap->set_acl($testuser, $login, "d");
 		if ($err == 0) {
-			print "ok pre6\n";
+			print "ok pre7\n";
 		} else {
-			print "not ok pre6: $imap->{'Error'}\n";
+			print "not ok pre7: $imap->{'Error'}\n";
 		}
 	} else {
-		print "pre6: IMAP server doesn't support ACL, trying delete directly\n";
+		print "pre7: IMAP server doesn't support ACL, trying delete directly\n";
 	}
 } else {
-	print "not ok 5: test user with optional partition argument failed, this might not be a problem\n";
+	print "not ok 6: test user with optional partition argument failed, this might not be a problem\n";
 }
 
 $subf = $testuser.".sub folder";
-$err = $imap->create('"'.$subf.'"');
+$err = $imap->create($subf);
 if ($err == 0) {
-	print "ok 6 : created sub folder (sub folder) for $testuser\n";
+	print "ok 7 : created sub folder (sub folder) for $testuser\n";
 } else {
-	print "not ok 6 : $imap->{'Error'}\n";
+	print "not ok 7 : $imap->{'Error'}\n";
 }
 
 $what = $testuser.'.*';
 undef @list;
 @list = $imap->list($what);
 if (!defined(@list)) {
-	print "not ok 7 : sub folder wasn't really created\n";
+	print "not ok 8 : sub folder wasn't really created\n";
 } else {
 	if ($list[0] eq $subf) {
-		print "ok 7\n";
+		print "ok 8\n";
 	} else {
-		print "not ok 7 : something was created (in 6) but didn't get reported correctly [@list]\n";
+		print "not ok 8 : something was created (in 6) but didn't get reported correctly [@list]\n";
 	}
 }
 $err = $imap->delete($testuser);
 if ($err == 0) {
-	print "ok 8\n";
+	print "ok 9\n";
 } else {
-	print "not ok 8, but if 5 failed this will fail as well -- $imap->{'Error'}\n";
+	print "not ok 9, but if 6 failed this will fail as well -- $imap->{'Error'}\n";
 }
 undef @list;
 @list = $imap->list($testuser);
 if (!defined(@list)) {
-	print "ok 9: $imap->{'Error'}\n";
+	print "ok 10: $imap->{'Error'}\n";
 } else {
-	print "not ok 9: found [@list]\n";
+	print "not ok 10: found [@list]\n";
 }
 $imap->close;
