@@ -8,3 +8,4 @@ examples/delete.pl
 certs/ca-cert.pem
 certs/client-cert.pem
 certs/client-key.pem
+META.yml                                 Module meta-data (added by MakeMaker)

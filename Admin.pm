@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.36 2001/11/06 02:17:17 eric Exp $
+# $Id: Admin.pm,v 1.37 2002/02/01 22:46:57 eric Exp $
 
 package IMAP::Admin;
 
@@ -11,7 +11,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.6.1';
+$VERSION = '1.6.2';
 
 sub new {
   my $class = shift;
@@ -362,8 +362,7 @@ sub get_quotaroot { # returns an array or undef
   my $try = $self->_read;
   while ($try =~ /^\* QUOTA/) {
     if ($try !~ /QUOTAROOT/) { # some imap servers give this extra line
-      $try =~ tr/\)\(//d;
-      @info = (split(' ', $try))[2,4,5];
+      @info = ($try =~ /QUOTAROOT\s(.*?)\s\(STORAGE\s(\d+)\s(\d+)/);
       push @quota, @info;
     }
     $try = $self->_read;
@@ -397,8 +396,7 @@ sub get_quota { # returns an array or undef
   print $fh qq{try GETQUOTA "$mailbox"\n};
   my $try = $self->_read;
   while ($try =~ /^\* QUOTA/) {
-    $try =~ tr/\)\(//d;
-    @info = (split(' ',$try))[2,4,5];
+    @info = ($try =~ /QUOTA\s(.*?)\s\(STORAGE\s(\d+)\s(\d+)/);
     push @quota, @info;
     $try = $self->_read;
   }
@@ -785,7 +783,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.36 2001/11/06 02:17:17 eric Exp $
+$Id: Admin.pm,v 1.37 2002/02/01 22:46:57 eric Exp $
 
 =head1 AUTHOR
 
