@@ -81,7 +81,7 @@ if ($imap->{'Capability'} =~ /QUOTA/) {
 }
 if ($imap->{'Capability'} =~ /ACL/) {
     print "note: your IMAP server supports ACL, setting delete permission\n";
-    $err = $imap->set_acl($testuser, $login, "c"); # create/delete
+    $err = $imap->set_acl($testuser, $login, "cd"); # create/delete
     if ($err != 0) {
 	print "not ok 7: $imap->{'Error'}\n";
     } else {
@@ -137,25 +137,18 @@ if (!defined(@list)) {
 	print "not ok 11 : something was created (in 10) but didn't get reported correctly [@list]\n";
     }
 }
-$err = $imap->rename($testuser, $renameuser);
-if ($err == 0) { # wow rename worked ?
-    print "ok 12: renamed $testuser to $renameuser\n";
-    $testuser = $renameuser;
-} else {
-    print "not ok 12: if this failed it might be for a political reason instead of a programtic one -- $imap->{'Error'}\n";
-}
 $err = $imap->h_delete($testuser);
 if ($err == 0) {
-    print "ok 13: hiearchically deleted $testuser\n";
+    print "ok 12: hiearchically deleted $testuser\n";
 } else {
-    print "not ok 13: hiearchical delete failed -- $imap->{'Error'}\n";
+    print "not ok 12: hiearchical delete failed -- $imap->{'Error'}\n";
 }
 
 undef @list;
 @list = $imap->list($testuser);
 if (!defined(@list)) {
-	print "ok 14: $imap->{'Error'}\n";
+	print "ok 13: $imap->{'Error'}\n";
 } else {
-	print "not ok 14: found [@list]\n";
+	print "not ok 13: found [@list]\n";
 }
 $imap->close;

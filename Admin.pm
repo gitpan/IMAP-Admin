@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.22 2000/10/13 06:32:13 eric Exp $
+# $Id: Admin.pm,v 1.23 2000/10/26 05:48:59 eric Exp $
 
 package IMAP::Admin;
 
@@ -6,11 +6,11 @@ use strict;
 use Carp;
 use IO::Select;
 use IO::Socket;
-use Text::ParseWords qw(quotewords);
+use Text::ParseWords qw(parse_line);
 
 use vars qw($VERSION);
 
-$VERSION = '1.3.7';
+$VERSION = '1.3.8';
 
 sub new {
     my $class = shift;
@@ -506,8 +506,8 @@ sub list { # wild cards are allowed, returns array or undef
     while ($try =~ /[\r\n]$/) {
       chop($try);
     }
-    while ($try =~ /\* /) { # danger danger (could lock up needs timeout)
-	@info = quotewords('\s+', 0, $try);
+    while ($try =~ /^\* LIST.*?\) \".\" (.*)$/) { # danger danger (could lock up needs timeout)
+	@info = parse_line('"', 0, $1);
 	push @mail, $info[$#info];
 	$try = <$fh>;
         while ($try =~ /[\r\n]$/) {
@@ -655,7 +655,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.22 2000/10/13 06:32:13 eric Exp $
+$Id: Admin.pm,v 1.23 2000/10/26 05:48:59 eric Exp $
 
 =head1 AUTHOR
 
