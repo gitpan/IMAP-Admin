@@ -138,3 +138,10 @@ Revision history for Perl extension IMAP::Admin.
   - added CRAM-MD5 support as an authentication method, send it in the new call
     0 off, 1 on, 2 on with LOGIN fallback, this also adds the requirement of
     Digest::MD5, Digest::HMAC, MIME::Base64 if you use this option
+
+1.6.1 Thu Dec 27 08:40:20 CST 2001
+  - bug report/fix (thanks to Arkadi Shishlov and Oleg Gawrilof) for CRAM setting being
+    uninitialized before use for the default case.
+  - added error condition for CRAM capability, cram use wanted without
+    fallback, but cram not available
+

@@ -11,7 +11,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.6.0';
+$VERSION = '1.6.1';
 
 sub new {
   my $class = shift;
@@ -19,6 +19,7 @@ sub new {
   my @defaults = (
                   'Port' => 143,
                   'Separator' => '.',
+                  'CRAM' => 0,
                   );
 
   bless $self, $class;
@@ -44,7 +45,7 @@ sub _initialize {
   if (!defined($self->{'Password'})) {
     croak "$self->{'CLASS'} not initialized properly : Password parameter missing";
   }
-  if (defined($self->{'CRAM'})) {
+  if ($self->{'CRAM'} != 0) {
       my $cram_try = "use Digest::HMAC; use Digest::MD5; use MIME::Base64;";
       eval $cram_try;
   }
@@ -133,6 +134,10 @@ sub _initialize {
     } else {
       if ($self->{'CRAM'} > 1) {
         print $fh qq{try LOGIN "$self->{'Login'}" "$self->{'Password'}"\n};
+      } else {
+        $self->close;
+        $self->_error("initialize","CRAM not reported in Capability check and fallback to PLAIN not selected", $self->{'Server'}, "[", $self->{'Capability'}, "]");
+        return;
       }
     }
   } else {
@@ -193,22 +198,22 @@ sub _read {
   while ($bytes == 1) {
     $bytes = sysread $self->{'Socket'}, $char, 1;
     if ($bytes == 0) {
-	    if (length ($buffer) != 0) {
+      if (length ($buffer) != 0) {
         return $buffer;
-	    } else {
+      } else {
         return;
-	    }
+      }
     } else {
-	    if (($char eq "\n") or ($char eq "\r")) {
+      if (($char eq "\n") or ($char eq "\r")) {
         if (length($buffer) == 0) {
           # cr or nl left over, just eat it
         } else {
           return $buffer;
         }
-	    } else {
+      } else {
 #		print "got char [$char]\n";
         $buffer .= $char;
-	    }
+      }
     }
   }
 }
@@ -326,11 +331,11 @@ sub h_delete {
     print $fh qq{try DELETE "$box"\n};
     my $try = $self->_read;
     if ($try =~ /^try OK/) {
-	    $self->{'Error'} = 'No Errors';
+      $self->{'Error'} = 'No Errors';
     } else {
-	    $self->_error("h_delete", "couldn't delete", 
-                    $mailbox, ":", $try);
-	    return 1; # or just return on the first encountered error ?
+       $self->_error("h_delete", "couldn't delete", 
+                     $mailbox, ":", $try);
+       return 1; # or just return on the first encountered error ?
     }
   }
   return 0;
@@ -357,9 +362,9 @@ sub get_quotaroot { # returns an array or undef
   my $try = $self->_read;
   while ($try =~ /^\* QUOTA/) {
     if ($try !~ /QUOTAROOT/) { # some imap servers give this extra line
-        $try =~ tr/\)\(//d;
-        @info = (split(' ', $try))[2,4,5];
-        push @quota, @info;
+      $try =~ tr/\)\(//d;
+      @info = (split(' ', $try))[2,4,5];
+      push @quota, @info;
     }
     $try = $self->_read;
   }
@@ -544,9 +549,9 @@ sub set_acl {
     print $fh qq{try SETACL "$mailbox" "$id" "$acl"\n};
     my $try = $self->_read;
     if ($try !~ /^try OK/) {
-	    $self->_error("set_acl", "couldn't set acl for", $mailbox, $id, 
+      $self->_error("set_acl", "couldn't set acl for", $mailbox, $id, 
                     $acl, ":", $try);
-	    return 1;
+      return 1;
     }
   }
   $self->{'Error'} = 'No Errors';
@@ -575,9 +580,9 @@ sub delete_acl {
     print $fh qq{try DELETEACL "$mailbox" "$id"\n};
     my $try = $self->_read;
     if ($try !~ /^try OK/) {
-	    $self->_error("delete_acl", "couldn't delete acl for", $mailbox,
+      $self->_error("delete_acl", "couldn't delete acl for", $mailbox,
                     $id, $acl, ":", $try);
-	    return 1;
+      return 1;
     }
   }
   return 0;
@@ -629,7 +634,7 @@ IMAP::Admin - Perl module for basic IMAP server administration
                            'Password' => 'password_of_imap_adminstrator',
                            'Port' => port# (143 is default),
                            'Separator' => ".", # default is a period
-                           'CRAM' => 1, # off by default
+                           'CRAM' => 1, # off by default, can be 0,1,2
                            'SSL' => 1, # off by default
                            # and any of the SSL_ options from IO::Socket::SSL
                            );
