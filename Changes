@@ -41,3 +41,6 @@ Revision history for Perl extension IMAP::Admin.
 	  characters in folder names (thanks also for the cruft fixes :)
 	- cleaned up code and documentation
 	- added quota test
+
+1.2.1 Thu Mar 02 12:04:13 2000
+	- added none option to set_quota to set the quota to none

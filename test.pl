@@ -63,6 +63,12 @@ if ($imap->{'Capability'} =~ /QUOTA/) {
 	@quota = $imap->get_quota($testuser);
 	if (defined(@quota)) {
 		print "ok 4: quota was set (@quota)\n";
+		$err = $imap->set_quota($testuser, "none");
+		if ($err == 0) {
+			print "ok post 4: set quota to none\n";
+		} else {
+			print "not ok post 4: couldn't set quota to none\n";
+		}
 	} else {
 		print "not ok 4: quota set failed : $imap->{'Error'}\n";
 	} 
@@ -90,7 +96,7 @@ $err = $imap->create($testuser, "default");
 if ($err == 0) {
 	print "ok 6 : test user created with optional partition set to default\n";
 	if ($imap->{'Capability'} =~ /ACL/) {
-		print "pre6: IMAP server supports ACL, setting delete permission\n";
+		print "pre7: IMAP server supports ACL, setting delete permission\n";
 		$err = $imap->set_acl($testuser, $login, "d");
 		if ($err == 0) {
 			print "ok pre7\n";

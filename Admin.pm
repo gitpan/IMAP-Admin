@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.15 2000/03/02 17:30:41 eric Exp $
+# $Id: Admin.pm,v 1.16 2000/03/02 18:09:13 eric Exp $
 
 package IMAP::Admin;
 
@@ -10,7 +10,7 @@ use Text::ParseWords qw(quotewords);
 
 use vars qw($VERSION);
 
-$VERSION = '1.2.0';
+$VERSION = '1.2.1';
 
 sub new {
     my $class = shift;
@@ -249,7 +249,11 @@ sub set_quota {
 	return 1;
     }
     my $fh = $self->{'Socket'};
-    print $fh qq{try SETQUOTA "$mailbox" (STORAGE $quota)\n};
+    if ($quota eq "none") {
+	print $fh qq{try SETQUOTA "$mailbox" ()\n};
+    } else {
+	print $fh qq{try SETQUOTA "$mailbox" (STORAGE $quota)\n};
+    }
     my $try = <$fh>;
     if ($try =~ /^try OK/) {
 	$self->{'Error'} = "No Errors";
@@ -478,6 +482,9 @@ $quota[2] <- quota in kbytes
 set_quota sets the quota.  The number is in kilobytes so 10000 is approximately 10Meg.
 set_quota returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure.
 
+To delete a quota do a set_quota($mailbox, "none");
+
+
 =head2 ACCESS CONTROL FUNCTIONS
 
 NOT RFC2060 commands.  These are supported by Cyrus IMAP and Mirapoint.
@@ -504,7 +511,7 @@ Currently all the of the socket traffic is handled via prints and <>.  This mean
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.15 2000/03/02 17:30:41 eric Exp $
+$Id: Admin.pm,v 1.16 2000/03/02 18:09:13 eric Exp $
 
 =head1 AUTHOR
 
