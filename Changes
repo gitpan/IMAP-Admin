@@ -62,3 +62,18 @@ Revision history for Perl extension IMAP::Admin.
 	  Paul Wiechman and Alain Turbide
 	- a previous fix seems to have broken some things with cyrus users
 	  so hopefully this fixes my fix
+
+1.3.5 Thu Sep 28 17:09:02 2000
+	- added subscribe/unsubscribe at the request of the applications
+	  group of Universal Talkware (apparently makes mozilla
+          e-mail happier)
+
+1.3.7 Fri Oct 13 00:21:11 2000
+	- added rename at the request of Thomas Bolioli
+	- added h_delete (hiearchical delete) because I like just
+	  being able to specify the mailbox and have all the
+	  sub-mailboxes go away as well (be careful with this
+	  as it does do a wild card list)
+	- added new option to the new function 'Separator', set this
+	  to the hiearchical separator your server uses (defaults to period)
+	  this is needed by h_delete
