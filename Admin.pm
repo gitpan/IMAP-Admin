@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.10 1999/10/16 16:07:25 eric Exp $
+# $Id: Admin.pm,v 1.14 1999/11/23 01:44:39 eric Exp $
 
 package IMAP::Admin;
 
@@ -6,6 +6,7 @@ use strict;
 use Carp;
 use IO::Select;
 use IO::Socket;
+use Text::ParseWords qw(quotewords);
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 
@@ -19,7 +20,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '0.9.0';
+$VERSION = '1.0.1';
 
 sub new {
     my $class = shift;
@@ -397,8 +398,7 @@ sub list { # wild cards are allowed, returns array or undef
       chop;
     }
     while (/\* /) { # danger danger (could lock up needs timeout)
-	@info = split(' ');
-        $info[$#info] =~ tr/\"//d; # " balance quotes for emacs
+	@info = quotewords('\s+', 0, $_);
 	push @mail, $info[$#info];
 	$_ = <$fh>;
         while ((/\r$/) || (/\n$/)) {
@@ -514,7 +514,7 @@ Currently all the of the socket traffic is handled via prints and <>.  This mean
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.10 1999/10/16 16:07:25 eric Exp $
+$Id: Admin.pm,v 1.14 1999/11/23 01:44:39 eric Exp $
 
 =head1 AUTHOR
 

@@ -18,7 +18,7 @@ print "ok 1\n";
 # (correspondingly "not ok 13") depending on the success of chunk 13
 # of the test code):
 
-$testuser = "user.testjoe";
+$testuser = "user.testjoebob";
 
 print "Please enter the server and the admin user and password at the prompts\n";
 print "Enter server: ";
@@ -26,8 +26,11 @@ chomp($server = <>);
 $port = 143;
 print "Enter login: ";
 chomp($login = <>);
+system "stty -echo";
 print "Enter password: ";
 chomp($password = <>);
+print "\n";
+system "stty echo";
 
 $imap = IMAP::Admin->new('Server' => $server, 'Port' => $port,
 			 'Login' => $login, 'Password' => $password);
@@ -82,17 +85,38 @@ if ($err == 0) {
 } else {
 	print "not ok 5: test user with optional partition argument failed, this might not be a problem\n";
 }
+
+$subf = $testuser.".sub folder";
+$err = $imap->create('"'.$subf.'"');
+if ($err == 0) {
+	print "ok 6 : created sub folder (sub folder) for $testuser\n";
+} else {
+	print "not ok 6 : $imap->{'Error'}\n";
+}
+
+$what = $testuser.'.*';
+undef @list;
+@list = $imap->list($what);
+if (!defined(@list)) {
+	print "not ok 7 : sub folder wasn't really created\n";
+} else {
+	if ($list[0] eq $subf) {
+		print "ok 7\n";
+	} else {
+		print "not ok 7 : something was created (in 6) but didn't get reported correctly [@list]\n";
+	}
+}
 $err = $imap->delete($testuser);
 if ($err == 0) {
-	print "ok 6\n";
+	print "ok 8\n";
 } else {
-	print "not ok 6, but if 5 failed this will fail as well -- $imap->{'Error'}\n";
+	print "not ok 8, but if 5 failed this will fail as well -- $imap->{'Error'}\n";
 }
 undef @list;
 @list = $imap->list($testuser);
 if (!defined(@list)) {
-	print "ok 7: $imap->{'Error'}\n";
+	print "ok 9: $imap->{'Error'}\n";
 } else {
-	print "not ok 7: found [@list]\n";
+	print "not ok 9: found [@list]\n";
 }
 $imap->close;
