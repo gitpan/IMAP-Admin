@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.27 2000/10/26 17:35:38 eric Exp $
+# $Id: Admin.pm,v 1.28 2000/10/26 18:50:05 eric Exp $
 
 package IMAP::Admin;
 
@@ -12,7 +12,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.4.0';
+$VERSION = '1.4.1';
 
 sub new {
     my $class = shift;
@@ -558,9 +558,8 @@ sub list { # wild cards are allowed, returns array or undef
     my $fh = $self->{'Socket'};
     print $fh qq{try LIST "" "$list"\n};
     my $try = $self->_read;
-    while ($try =~ /^\* LIST.*?\) \".\" (.*)$/) { # danger danger (could lock up needs timeout)
-	@info = parse_line('"', 0, $1);
-	push @mail, $info[$#info];
+    while ($try =~ /^\* LIST.*?\) \".\" \"*(.*?)\"*$/) { # danger danger (could lock up needs timeout)
+	push @mail, $1;
 	$try = $self->_read;
     }
     if ($try =~ /^try OK/) {
@@ -732,7 +731,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.27 2000/10/26 17:35:38 eric Exp $
+$Id: Admin.pm,v 1.28 2000/10/26 18:50:05 eric Exp $
 
 =head1 AUTHOR
 

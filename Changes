@@ -96,3 +96,7 @@ Revision history for Perl extension IMAP::Admin.
 	  are handled by _read (still doesn't select, but getting closer)
  	- currently it doesn't check for ssl capability (rfc2595 compliance),
 	  but maybe in the future
+
+1.4.1 Thu Oct 26 13:35:17 2000
+	- bug fix (thanks to Thomas Bolioli) for single quotes in a 
+	  mailbox name
