@@ -19,7 +19,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '0.8.1';
+$VERSION = '0.8.2';
 
 sub new {
     my $class = shift;
@@ -348,7 +348,7 @@ sub list { # wild cards are allowed, returns array or undef
 	return;
     }
     my $fh = $self->{'Socket'};
-    print $fh "try LIST $list $list\n";
+    print $fh "try LIST \"\" \"$list\"\n";
     $_ = <$fh>;
     while ((/\r$/) || (/\n$/)) {
       chop;

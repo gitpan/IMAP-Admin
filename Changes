@@ -10,3 +10,10 @@ Revision history for Perl extension IMAP::Admin.
 	- changed get_quota and get_acl interfaces to have output
 	  that can be given as input to respective sets
 	- updated documentation
+
+0.8.1 don't remember
+	- doc and bug fixing
+
+0.8.2 Thu Mar 18 16:40:02 1999
+	- fix to list command, bug/patch submitted by Alex Perel
+	- fix in test bug/patch submitted by Alex Perel

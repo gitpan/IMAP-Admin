@@ -30,7 +30,7 @@ print "Enter password: ";
 chomp($password = <>);
 
 $imap = IMAP::Admin->new('Server' => $server, 'Port' => $port,
-			 'Login' => 'cyrus', 'Password' => $password);
+			 'Login' => $login, 'Password' => $password);
 for ($err = $imap->create($testuser); $err != 0; 
      $err = $imap->create($testuser)) {
 	print <<EOF;
