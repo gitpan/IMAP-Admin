@@ -1,6 +1,6 @@
 # IMAP::Admin - perl module for helping ease the administration of imap servers
 
-ackage IMAP::Admin;
+package IMAP::Admin;
 
 use strict;
 use Carp;
@@ -11,7 +11,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.6.3';
+$VERSION = '1.6.4';
 
 sub new {
   my $class = shift;

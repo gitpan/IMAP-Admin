@@ -154,3 +154,8 @@ Revision history for Perl extension IMAP::Admin.
   - arrg, I fixed get_quotaroot incorrectly and didn't test it. It should
     have used the same regex as get_quota instead of what I did. Thanks
     Franscesco for pointing out the error (again).
+
+1.6.4 Wed Feb 16 07:43:28 CST 2005
+  - I screwed the pooch on 1.6.3, blatant typo pointed out to me by matrix200
+    guess I forgot to run make test before releasing.
+
