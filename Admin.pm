@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.18 2000/03/13 03:24:41 eric Exp $
+# $Id: Admin.pm,v 1.19 2000/06/22 13:05:02 eric Exp $
 
 package IMAP::Admin;
 
@@ -10,7 +10,7 @@ use Text::ParseWords qw(quotewords);
 
 use vars qw($VERSION);
 
-$VERSION = '1.2.2';
+$VERSION = '1.2.5';
 
 sub new {
     my $class = shift;
@@ -141,7 +141,7 @@ sub delete {
 	return 1;
     }
     my $fh = $self->{'Socket'};
-    print $fh "try DELETE $mailbox\n";
+    print $fh qq{try DELETE "$mailbox"\n};
     my $try = <$fh>;
     if ($try =~ /^try OK/) {
 	$self->{'Error'} = 'No Errors';
@@ -282,7 +282,7 @@ sub get_acl { # returns an array or undef
 	return;
     }
     my $fh = $self->{'Socket'};
-    print $fh "try GETACL $mailbox\n";
+    print $fh qq{try GETACL "$mailbox"\n};
     my $try = <$fh>;
     while ($try =~ /[\r\n]$/) {
 	chop($try);
@@ -515,7 +515,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.18 2000/03/13 03:24:41 eric Exp $
+$Id: Admin.pm,v 1.19 2000/06/22 13:05:02 eric Exp $
 
 =head1 AUTHOR
 

@@ -51,3 +51,8 @@ Revision history for Perl extension IMAP::Admin.
 	  package (its the same as the perl license)
 	  If you do use this is a product just drop me a line and let me know,
 	  curiosity kills my cat.
+
+1.2.5 Thu Jun 22 08:03:04 2000
+	- bug fix for delete mailboxes with spaces from patrick@secureops.com
+	- above bug fix made me look at other mailbox issues so 
+	  getacl is also fixed with regards to mailboxes with spaces
