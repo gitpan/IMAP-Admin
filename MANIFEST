@@ -5,3 +5,6 @@ Makefile.PL
 test.pl
 examples/create.pl
 examples/delete.pl
+certs/ca-cert.pem
+certs/client-cert.pem
+certs/client-key.pem

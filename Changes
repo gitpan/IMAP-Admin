@@ -77,3 +77,22 @@ Revision history for Perl extension IMAP::Admin.
 	- added new option to the new function 'Separator', set this
 	  to the hiearchical separator your server uses (defaults to period)
 	  this is needed by h_delete
+
+1.3.8 Wed Oct 25 11:50:49 2000
+	- fixed a 'bug' in list for servers that don't quote mailboxes
+	  that have spaces in folder names
+	- fixed a bug in test that I introduced in 1.3.7
+
+1.4.0 Thu Oct 26 11:59:56 2000
+	- added SSL support via IO::Socket::SSL (optional new function).
+	  imap::admin doesn't attempt to load IO::Socket::SSL until you
+	  specify that you want to use ssl (so if you don't have it
+	  installed on your box it shouldn't make a difference)
+	- rearranged code so croaks do not happen for connection issues,
+	  instead you get an error from initialize code when you try to
+	  do a command. (This is to help all of those people using this
+	  in cgi scripts)
+	- in supporting ssl I had to switch to sysreads, so now all reads
+	  are handled by _read (still doesn't select, but getting closer)
+ 	- currently it doesn't check for ssl capability (rfc2595 compliance),
+	  but maybe in the future

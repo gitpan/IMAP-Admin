@@ -33,11 +33,24 @@ print "Enter password: ";
 chomp($password = <>);
 print "\n";
 system "stty echo";
+print "Test using SSL(y/n)? ";
+chomp($ssl = <>);
 
+if ($ssl ne "n") {
+    print  "Enter Port#: ";
+    chomp($port = <>);
+    $imap = IMAP::Admin->new('Server' => $server, 'Port' => $port,
+			     'SSL' => 1, 'SSL_ca_file' => "certs/ca-cert.pem",
+			     'Login' => $login, 'Password' => $password,);
+} else {
+    $imap = IMAP::Admin->new('Server' => $server, 'Port' => $port,
+			     'Login' => $login, 'Password' => $password);
+}
 
-$imap = IMAP::Admin->new('Server' => $server, 'Port' => $port,
-			 'Login' => $login, 'Password' => $password);
-
+if ($imap->{'Error'} ne "No Errors") {
+    print "$imap->{'Error'}\n";
+    exit 0;
+}
 for ($err = $imap->create($testuser); $err != 0; 
      $err = $imap->create($testuser)) {
 	print <<EOF;
