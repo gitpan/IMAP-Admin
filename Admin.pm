@@ -1,6 +1,6 @@
-# $Id: Admin.pm,v 1.37 2002/02/01 22:46:57 eric Exp $
+# IMAP::Admin - perl module for helping ease the administration of imap servers
 
-package IMAP::Admin;
+ackage IMAP::Admin;
 
 use strict;
 use Carp;
@@ -11,7 +11,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.6.2';
+$VERSION = '1.6.3';
 
 sub new {
   my $class = shift;
@@ -362,7 +362,7 @@ sub get_quotaroot { # returns an array or undef
   my $try = $self->_read;
   while ($try =~ /^\* QUOTA/) {
     if ($try !~ /QUOTAROOT/) { # some imap servers give this extra line
-      @info = ($try =~ /QUOTAROOT\s(.*?)\s\(STORAGE\s(\d+)\s(\d+)/);
+      @info = ($try =~ /QUOTA\s(.*?)\s\(STORAGE\s(\d+)\s(\d+)/);
       push @quota, @info;
     }
     $try = $self->_read;

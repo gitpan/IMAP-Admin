@@ -150,3 +150,7 @@ Revision history for Perl extension IMAP::Admin.
     handling folders/mailboxes with spaces
     patched both with a regex to handle the data extraction, should work now.
 
+1.6.3 Sun Jan 30 20:53:22 CST 2005
+  - arrg, I fixed get_quotaroot incorrectly and didn't test it. It should
+    have used the same regex as get_quota instead of what I did. Thanks
+    Franscesco for pointing out the error (again).
