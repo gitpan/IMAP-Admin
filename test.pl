@@ -77,11 +77,18 @@ if ($imap->{'Capability'} =~ /QUOTA/) {
 }
 if ($imap->{'Capability'} =~ /ACL/) {
 	print "pre5: IMAP server supports ACL, setting delete permission\n";
-	$err = $imap->set_acl($testuser, $login, "d");
-	if ($err == 0) {
-		print "ok pre5\n";
-	} else {
+	$err = $imap->set_acl($testuser, $login, "cd"); # create and delete
+	if ($err != 0) {
 		print "not ok pre5: $imap->{'Error'}\n";
+	} else {
+        	print "pre5: checking to see if permission was actually set\n";
+		undef @acl;
+		@acl = $imap->get_acl($testuser);
+		if (!defined(@acl)) {
+			print "not ok pre5: $imap->{'Error'}\n";
+		} else {
+			print "ok pre5: acl string @acl\n";
+		}
 	}
 } else {
 	print "pre5: IMAP server doesn't support ACL, trying delete directly\n";
@@ -90,14 +97,14 @@ $err = $imap->delete($testuser);
 if ($err == 0) {
 	print "ok 5\n";
 } else {
-	print "not ok 5\n";
+	print "not ok 5: $imap->{'Error'}\n";
 }
 $err = $imap->create($testuser, "default");
 if ($err == 0) {
 	print "ok 6 : test user created with optional partition set to default\n";
 	if ($imap->{'Capability'} =~ /ACL/) {
 		print "pre7: IMAP server supports ACL, setting delete permission\n";
-		$err = $imap->set_acl($testuser, $login, "d");
+		$err = $imap->set_acl($testuser, $login, "cd");
 		if ($err == 0) {
 			print "ok pre7\n";
 		} else {
@@ -114,6 +121,17 @@ $subf = $testuser.".sub folder";
 $err = $imap->create($subf);
 if ($err == 0) {
 	print "ok 7 : created sub folder (sub folder) for $testuser\n";
+	if ($imap->{'Capability'} =~ /ACL/) {
+		print "post7: setting delete permission on $subf\n";
+		$err = $imap->set_acl($subf, $login, "cd");
+		undef @acl;
+		@acl = $imap->get_acl($subf);
+		if ($err == 0) {
+			print "ok post7: acl string returned [@acl]\n";
+		} else {
+			print "not ok post7: $imap->{'Error'}\n";
+		}
+	}
 } else {
 	print "not ok 7 : $imap->{'Error'}\n";
 }
@@ -130,17 +148,23 @@ if (!defined(@list)) {
 		print "not ok 8 : something was created (in 6) but didn't get reported correctly [@list]\n";
 	}
 }
-$err = $imap->delete($testuser);
+$err = $imap->delete($subf);
 if ($err == 0) {
-	print "ok 9\n";
+	print "ok 9: deleted $subf\n";
 } else {
 	print "not ok 9, but if 6 failed this will fail as well -- $imap->{'Error'}\n";
+}
+$err = $imap->delete($testuser);
+if ($err == 0) {
+	print "ok 10\n";
+} else {
+	print "not ok 10, but if 6 failed this will fail as well -- $imap->{'Error'}\n";
 }
 undef @list;
 @list = $imap->list($testuser);
 if (!defined(@list)) {
-	print "ok 10: $imap->{'Error'}\n";
+	print "ok 11: $imap->{'Error'}\n";
 } else {
-	print "not ok 10: found [@list]\n";
+	print "not ok 11: found [@list]\n";
 }
 $imap->close;

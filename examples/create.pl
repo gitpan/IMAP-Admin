@@ -17,4 +17,5 @@ foreach $mailbox (@ARGV) {
 # if you have Cyrus IMAP you could also do lines like these
 #	$err = $imap->set_quota($mailbox, 10000);
 #	$err = $imap->set_acl($mailbox, 'admin', 'lrswipcda');
+# the c and d are the minimum needed to delete mailboxes in cyrus 2.x
 }

@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.19 2000/06/22 13:05:02 eric Exp $
+# $Id: Admin.pm,v 1.20 2000/08/23 04:25:30 eric Exp $
 
 package IMAP::Admin;
 
@@ -10,7 +10,7 @@ use Text::ParseWords qw(quotewords);
 
 use vars qw($VERSION);
 
-$VERSION = '1.2.5';
+$VERSION = '1.3.0';
 
 sub new {
     my $class = shift;
@@ -174,7 +174,7 @@ sub get_quotaroot { # returns an array or undef
     while ($try =~ /[\r\n]$/) {
       chop($try);
     }
-    while ($try = /^\* QUOTA/) {
+    while ($try =~ /^\* QUOTA/) {
 	$try =~ tr/\)\(//d;
 	@info = (split(' ', $try))[2,4,5];
 	push @quota, @info;
@@ -270,7 +270,7 @@ sub get_acl { # returns an array or undef
 
     if (!($self->{'Capability'} =~ /ACL/)) {
 	$self->_error("get_acl", "ACL not listed in server's capabilities");
-	return 1;
+	return;
     }
     if (scalar(@_) != 1) {
 	$self->_error("get_acl", "incorrect number of arguments");
@@ -515,7 +515,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.19 2000/06/22 13:05:02 eric Exp $
+$Id: Admin.pm,v 1.20 2000/08/23 04:25:30 eric Exp $
 
 =head1 AUTHOR
 

@@ -56,3 +56,9 @@ Revision history for Perl extension IMAP::Admin.
 	- bug fix for delete mailboxes with spaces from patrick@secureops.com
 	- above bug fix made me look at other mailbox issues so 
 	  getacl is also fixed with regards to mailboxes with spaces
+
+1.3.0 Tue Aug 22 20:39:34 2000
+	- typo fix (left out tilde in get_quota_root) thanks to
+	  Paul Wiechman and Alain Turbide
+	- a previous fix seems to have broken some things with cyrus users
+	  so hopefully this fixes my fix
