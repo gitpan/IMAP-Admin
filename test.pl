@@ -25,7 +25,6 @@ print "Remaining tests require a connection an imap server\n";
 print "Please enter the server and the admin user and password at the prompts\n";
 print "Enter server: ";
 chomp($server = <>);
-$port = 143;
 print "Enter login: ";
 chomp($login = <>);
 system "stty -echo";
@@ -43,12 +42,12 @@ if ($ssl ne "n") {
 			     'SSL' => 1, 'SSL_ca_file' => "certs/ca-cert.pem",
 			     'Login' => $login, 'Password' => $password,);
 } else {
-    $imap = IMAP::Admin->new('Server' => $server, 'Port' => $port,
+    $imap = IMAP::Admin->new('Server' => $server, 
 			     'Login' => $login, 'Password' => $password);
 }
 
-if ($imap->{'Error'} ne "No Errors") {
-    print "$imap->{'Error'}\n";
+if ($imap->error ne "No Errors") {
+    print $imap->error, "\n";
     exit 0;
 }
 for ($err = $imap->create($testuser); $err != 0; 
@@ -69,7 +68,7 @@ if (defined(@list)) {
     print "not ok 3: $imap->{'Error'}\n";
 }
 if ($imap->{'Capability'} =~ /QUOTA/) {
-    print "note: your IMAP server supports QUOTA, going to try and see if I can use them\n";
+    print "\nnote: your IMAP server supports QUOTA, going to try and see if I can use them\n";
     $err = $imap->set_quota($testuser, 10000);
     if ($err == 0) {
 	print "ok 4\n";
@@ -93,7 +92,7 @@ if ($imap->{'Capability'} =~ /QUOTA/) {
     print "skipping tests 4-6, your IMAP server doesn't support QUOTA\n";
 }
 if ($imap->{'Capability'} =~ /ACL/) {
-    print "note: your IMAP server supports ACL, setting delete permission\n";
+    print "\nnote: your IMAP server supports ACL, setting delete permission\n";
     $err = $imap->set_acl($testuser, $login, "cd"); # create/delete
     if ($err != 0) {
 	print "not ok 7: $imap->{'Error'}\n";
@@ -103,7 +102,7 @@ if ($imap->{'Capability'} =~ /ACL/) {
 	if (!defined(@acl)) {
 	    print "not ok 7: $imap->{'Error'}\n";
 	} else {
-	    print "ok 7: acl string @acl\n";
+	    print "ok 7: acl string [@acl]\n";
 	}
     }
 } else {
@@ -133,6 +132,11 @@ if ($err == 0) {
 	$err = $imap->set_acl($subf, $login, "cd");
 	undef @acl;
 	@acl = $imap->get_acl($subf);
+	if (!defined(@acl)) {
+		print "test 10 acl failed $imap->{'Error'}\n";
+	} else {
+		print "  test 10 acl string [@acl] <- should match test 7\n";
+	}
     }
 } else {
     print "not ok 10 : $imap->{'Error'}\n";

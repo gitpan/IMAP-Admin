@@ -100,3 +100,14 @@ Revision history for Perl extension IMAP::Admin.
 1.4.1 Thu Oct 26 13:35:17 2000
 	- bug fix (thanks to Thomas Bolioli) for single quotes in a 
 	  mailbox name
+
+1.4.2 Thu Nov  9 22:31:08 2000
+	- rearranged new/initialize (no functionality change)
+	- added error subroutine to return error condition
+
+1.4.3 Tue Nov 28 07:50:56 2000
+	- bug report/fix (thanks to Marc Groot Koerkamp) get_acl had problems
+	  with spaces in mailbox names (my forever bug)
+	- bug report/fix (again thanks to Marc) delete was calling incorrect read
+	  function
+

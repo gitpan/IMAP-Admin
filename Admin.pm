@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.28 2000/10/26 18:50:05 eric Exp $
+# $Id: Admin.pm,v 1.31 2000/11/29 06:06:44 eric Exp $
 
 package IMAP::Admin;
 
@@ -12,21 +12,22 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.4.1';
+$VERSION = '1.4.3';
 
 sub new {
     my $class = shift;
     my $self = {};
+    my @defaults = (
+		    'Port' => 143,
+		    'Separator' => '.',
+		    );
 
     bless $self, $class;
     if ((scalar(@_) % 2) != 0) {
 	croak "$class called with incorrect number of arguments";
     }
-    while (@_) {
-	my $key = shift(@_);
-	my $value = shift(@_);
-	$self->{$key} = $value;
-    }
+    unshift @_, @defaults;
+    %{$self} = @_; # set up parameters;
     $self->{'CLASS'} = $class;
     $self->_initialize;
     return $self;
@@ -38,17 +39,11 @@ sub _initialize {
     if (!defined($self->{'Server'})) {
 	croak "$self->{'CLASS'} not initialized properly : Server parameter missing";
     }
-    if (!defined($self->{'Port'})) {
-	$self->{'Port'} = 143; # default imap port;
-    }
     if (!defined($self->{'Login'})) {
 	croak "$self->{'CLASS'} not initialized properly : Login parameter missing";
     }
     if (!defined($self->{'Password'})) {
 	croak "$self->{'CLASS'} not initialized properly : Password parameter missing";
-    }
-    if (!defined($self->{'Separator'})) {
-	$self->{'Separator'} = "."; # set hiearchical separator to a period
     }
     if (defined($self->{'SSL'})) { # attempt SSL connection instead
 	# construct array of ssl options
@@ -145,6 +140,11 @@ sub _error {
     my @error = @_;
 
     $self->{'Error'} = join(" ",$self->{'CLASS'}, "[", $func, "]:", @error);
+}
+
+sub error {
+    my $self = shift;
+    return $self->{'Error'};
 }
 
 sub _read {
@@ -446,7 +446,6 @@ sub unsubscribe {
 
 sub get_acl { # returns an array or undef
     my $self = shift;
-    my (@info, @acl_item, @acl, $item);
 
     if (!defined($self->{'Socket'})) {
 	return;
@@ -462,15 +461,13 @@ sub get_acl { # returns an array or undef
     my $mailbox = shift;
     my $fh = $self->{'Socket'};
     print $fh qq{try GETACL "$mailbox"\n};
+    delete $self->{'acl'};
     my $try = $self->_read;
-    while ($try =~ /^\* ACL/) {
-	@info = split(' ',$try,4);
-        @acl_item = split(' ',$info[3]);
-	push @acl, @acl_item;
+    while ($try =~ /^\* ACL\s+(?:\".*?\"|.*?)\s+((\".*?\"|.*?)(?:\s)(?{ push @{$self->{'acl'}}, $2; }))+(\w+)(?{ push @{$self->{'acl'}}, $3; })$/) {
 	$try = $self->_read;
     }
     if ($try =~ /^try OK/) {
-	return @acl;
+	return @{$self->{'acl'}};
     } else {
 	$self->_error("get_acl", "couldn't get acl for", $mailbox, ":", $try);
 	return;
@@ -533,7 +530,7 @@ sub delete_acl {
     while(@_) {
 	$id = shift;
 	print $fh qq{try DELETEACL "$mailbox" "$id"\n};
-	my $try = $self->read;
+	my $try = $self->_read;
 	if ($try !~ /^try OK/) {
 	    $self->_error("delete_acl", "couldn't delete acl for", $mailbox,
 			  $id, $acl, ":", $try);
@@ -558,7 +555,7 @@ sub list { # wild cards are allowed, returns array or undef
     my $fh = $self->{'Socket'};
     print $fh qq{try LIST "" "$list"\n};
     my $try = $self->_read;
-    while ($try =~ /^\* LIST.*?\) \".\" \"*(.*?)\"*$/) { # danger danger (could lock up needs timeout)
+    while ($try =~ /^\* LIST.*?\) \".\" \"*(.*?)\"*$/) { # danger danger (could lock up needs timeout) " <- this quote makes emacs happy
 	push @mail, $1;
 	$try = $self->_read;
     }
@@ -596,6 +593,9 @@ IMAP::Admin - Perl module for basic IMAP server administration
   $err = $imap->create("user.bob");
   if ($err != 0) {
     print "$imap->{'Error'}\n";
+  }
+  if ($err != 0) {
+      print $imap->error;
   }
   $err = $imap->create("user.bob", "green"); 
   $err = $imap->delete("user.bob");
@@ -731,7 +731,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.28 2000/10/26 18:50:05 eric Exp $
+$Id: Admin.pm,v 1.31 2000/11/29 06:06:44 eric Exp $
 
 =head1 AUTHOR
 
