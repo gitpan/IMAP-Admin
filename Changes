@@ -126,3 +126,6 @@ Revision history for Perl extension IMAP::Admin.
     support (?{ code }), so get_acl splitting expression was re-vamped.
   - removed use IO::Socket::INET (again some older perls)
   - removed Text::Parsewords dependency (wasn't using it anymore anyway)
+
+1.5.1 Thu Aug  2 14:43:27 CDT 2001
+  - bug report/fix (thanks to Paul Kranenburg) in get_quotaroot, removes extraneous line

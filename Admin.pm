@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.32 2001/08/02 18:48:31 eric Exp $
+# $Id: Admin.pm,v 1.34 2001/08/02 19:50:12 eric Exp $
 
 package IMAP::Admin;
 
@@ -11,7 +11,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.5.0';
+$VERSION = '1.5.1';
 
 sub new {
   my $class = shift;
@@ -317,6 +317,7 @@ sub get_quotaroot { # returns an array or undef
   print $fh qq{try GETQUOTAROOT "$mailbox"\n};
   my $try = $self->_read;
   while ($try =~ /^\* QUOTA/) {
+    next if ($try =~ /QUOTAROOT/); # some imap servers give this extra line
     $try =~ tr/\)\(//d;
     @info = (split(' ', $try))[2,4,5];
     push @quota, @info;
@@ -736,7 +737,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.32 2001/08/02 18:48:31 eric Exp $
+$Id: Admin.pm,v 1.34 2001/08/02 19:50:12 eric Exp $
 
 =head1 AUTHOR
 
