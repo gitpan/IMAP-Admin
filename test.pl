@@ -18,31 +18,58 @@ print "ok 1\n";
 # (correspondingly "not ok 13") depending on the success of chunk 13
 # of the test code):
 
-$server = "bogus.imap.server.com";
+$testuser = "user.testjoe";
+
+print "Please enter the server and the admin user and password at the prompts\n";
+print "Enter server: ";
+chomp($server = <>);
 $port = 143;
-$login = "bogus";
-$password = "B0gUs";
+print "Enter login: ";
+chomp($login = <>);
+print "Enter password: ";
+chomp($password = <>);
 
 $imap = IMAP::Admin->new('Server' => $server, 'Port' => $port,
 			 'Login' => 'cyrus', 'Password' => $password);
-
-$err = $imap->create("user.testjoe");
-if ($err == 0) {
-	print "ok 2\n";
-	@list = $imap->list("user.test*");
-	if (defined(@list)) {
-		print "ok 3\n";
-	} else {
-		print "not ok 3\n";
-	}
-	$err = $imap->delete("user.testjoe");
+for ($err = $imap->create($testuser); $err != 0; 
+     $err = $imap->create($testuser)) {
+	print <<EOF;
+The user I was testing with ($testuser) already exists.
+Please enter a email user that does not exist on $server.
+EOF
+	print "username: ";
+	chomp($testuser = <>); 
+}
+print "ok 2\n";
+undef @list;
+@list = $imap->list($testuser);
+if (defined(@list)) {
+	print "ok 3: found [@list]\n";
+} else {
+	print "not ok 3: $imap->{'Error'}\n";
+}
+if ($imap->{'Capability'} =~ /ACL/) {
+	print "pre4: IMAP server supports ACL, setting delete permission\n";
+	$err = $imap->set_acl($testuser, $login, "d");
 	if ($err == 0) {
-		print "ok 4\n";
+		print "ok pre4\n";
 	} else {
-		print "not ok 4\n";
+		print "not ok pre4: $imap->{'Error'}\n";
 	}
 } else {
-	print "not ok 2\n";
-	print "not ok 3\n";
+	print "pre4: IMAP server doesn't support ACL, trying delete directly\n";
+}
+$err = $imap->delete($testuser);
+if ($err == 0) {
+	print "ok 4\n";
+} else {
 	print "not ok 4\n";
 }
+undef @list;
+@list = $imap->list($testuser);
+if (!defined(@list)) {
+	print "ok 5: $imap->{'Error'}\n";
+} else {
+	print "not ok 5: found [@list]\n";
+}
+$imap->close;

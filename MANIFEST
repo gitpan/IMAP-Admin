@@ -3,6 +3,5 @@ Changes
 MANIFEST
 Makefile.PL
 test.pl
-README
 examples/create.pl
 examples/delete.pl

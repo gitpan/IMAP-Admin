@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.2 1998/12/18 01:18:18 eric Exp $
+# $Id: Admin.pm,v 1.4 1999/03/05 03:52:00 eric Exp $
 
 package IMAP::Admin;
 
@@ -19,7 +19,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '0.5';
+$VERSION = '0.7.0';
 
 sub new {
     my $class = shift;
@@ -68,12 +68,20 @@ sub _initialize {
 	$self->close;
 	croak $_;
     }
-    print $fh "try login $self->{'Login'} $self->{'Password'}\n";
+    print $fh "try CAPABILITY\n";
+    $_ = <$fh>;
+    chomp;
+    $self->{'Capability'} = $_;
+    $_ = <$fh>;
+    if (!/^try OK/) {
+	croak "$self->{'CLASS'}: Couldn't do capabilites check";
+    }
+    print $fh "try LOGIN $self->{'Login'} $self->{'Password'}\n";
     $_ = <$fh>;
     if (/Login incorrect/) {
 	$self->close;
 	croak "$self->{'CLASS'}: Login incorrect while connecting to $self->{'Server'}";
-    } elsif (/try OK/) {
+    } elsif (/^try OK/) {
 	return;
     } else {
 	croak "$self->{'CLASS'}: Unknown error -- $_";
@@ -142,6 +150,7 @@ sub delete {
 	return 0;
     } else {
 	$self->_error("delete", "couldn't delete", $mailbox, ":", $_);
+	return 1;
     }
 }
 
@@ -149,6 +158,10 @@ sub get_quota { # returns a hash or undef
     my $self = shift;
     my (%quota, @info);
 
+    if (!($self->{'Capability'} =~ /QUOTA/)) {
+	$self->_error("get_quota", "QUOTA not listed in server's capabilities");
+	return 1;
+    }
     if (scalar(@_) != 1) {
 	$self->_error("get_quota", "incorrect number of arguments");
 	return 1;
@@ -178,6 +191,10 @@ sub get_quota { # returns a hash or undef
 sub set_quota {
     my $self = shift;
 
+    if (!($self->{'Capability'} =~ /QUOTA/)) {
+	$self->_error("set_quota", "QUOTA not listed in server's capabilities");
+	return 1;
+    }
     if (scalar(@_) != 2) {
 	$self->_error("set_quota", "incorrect number of arguments");
 	return 1;
@@ -204,6 +221,10 @@ sub get_acl { # returns a hash or undef
     my $self = shift;
     my (@info, %acl, $item);
 
+    if (!($self->{'Capability'} =~ /ACL/)) {
+	$self->_error("get_acl", "ACL not listed in server's capabilities");
+	return 1;
+    }
     if (scalar(@_) != 1) {
 	$self->_error("get_acl", "incorrect number of arguments");
 	return;
@@ -233,6 +254,10 @@ sub set_acl {
     my $self = shift;
     my ($id, $acl);
 
+    if (!($self->{'Capability'} =~ /ACL/)) {
+	$self->_error("set_acl", "ACL not listed in server's capabilities");
+	return 1;
+    }
     if (scalar(@_) < 2) {
 	$self->_error("set_acl", "too few arguments");
 	return 1;
@@ -266,6 +291,10 @@ sub delete_acl {
     my $self = shift;
     my ($id, $acl);
 
+    if (!($self->{'Capability'} =~ /ACL/)) {
+	$self->_error("delete_acl", "ACL not listed in server's capabilities");
+	return 1;
+    }
     if (scalar(@_) < 1) {
 	$self->_error("delete_acl", "incorrect number of arguments");
 	return 1;
@@ -353,13 +382,13 @@ IMAP::Admin - Perl module for basic IMAP server administration
   @list = $imap->list("user.bob");
   @list = $imap->list("user.b*");
 
-  
+  $imap->{'Capability'} # this contains the Capabilities reply from the IMAP server
 
 =head1 DESCRIPTION
 
 IMAP::Admin provides basic IMAP server adminstration.  It provides functions for creating and deleting mailboxes and setting various information such as quotas and access rights.
 
-It's interface should, in theory, work with any RFC compliant IMAP server, but I currently have only tested it against Carnegie Mellon University's Cyrus IMAP.
+It's interface should, in theory, work with any RFC compliant IMAP server, but I currently have only tested it against Carnegie Mellon University's Cyrus IMAP.  It does a CAPABILITY check for Cyrus specific extensions to see if they are supported.
 
 Operationally it opens a socket connection to the IMAP server and logs in with the supplied login and password.  You then can call any of the functions to perform their associated operation.
 
@@ -414,7 +443,7 @@ Currently all the of the socket traffic is handled via prints and <>.  This mean
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.2 1998/12/18 01:18:18 eric Exp $
+$Id: Admin.pm,v 1.4 1999/03/05 03:52:00 eric Exp $
 
 =head1 AUTHOR
 
