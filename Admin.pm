@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.5 1999/03/13 01:14:05 eric Exp $
+# $Id: Admin.pm,v 1.10 1999/10/16 16:07:25 eric Exp $
 
 package IMAP::Admin;
 
@@ -19,7 +19,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '0.8.2';
+$VERSION = '0.9.0';
 
 sub new {
     my $class = shift;
@@ -66,7 +66,7 @@ sub _initialize {
     $_ = <$fh>; # get Banner
     if (!/\* OK/) {
 	$self->close;
-	croak $_;
+	croak "$self->{'CLASS'}: Connection to $self->{'Server'} bad/no response: $!";
     }
     print $fh "try CAPABILITY\n";
     $_ = <$fh>;
@@ -112,7 +112,7 @@ sub close {
 sub create {
     my $self = shift;
 
-    if (scalar(@_) != 1) {
+    if ((scalar(@_) != 1) && (scalar(@_) != 2)) {
 	$self->_error("create", "incorrect number of arguments");
 	return 1;
     }
@@ -122,7 +122,11 @@ sub create {
 	return 1;
     }
     my $fh = $self->{'Socket'};
-    print $fh "try CREATE $mailbox\n";
+    if (scalar(@_) == 1) { # a partition exists
+	print $fh "try CREATE $mailbox $_[0]\n";
+    } else {
+	print $fh "try CREATE $mailbox\n";
+    }
     $_ = <$fh>;
     if (/^try OK/) {
 	$self->{'Error'} = 'No Errors';
@@ -154,6 +158,45 @@ sub delete {
     } else {
 	$self->_error("delete", "couldn't delete", $mailbox, ":", $_);
 	return 1;
+    }
+}
+sub get_quotaroot { # returns an array or undef
+    my $self = shift;
+    my (@quota, @info);
+
+    if (!($self->{'Capability'} =~ /QUOTA/)) {
+	$self->_error("get_quotaroot", "QUOTA not listed in server's capabilities");
+	return 1;
+    }
+    if (scalar(@_) != 1) {
+	$self->_error("get_quotaroot", "incorrect number of arguments");
+	return 1;
+    }
+    my $mailbox = shift;
+    if (!defined($self->{'Socket'})) {
+	$self->_error("get_quotaroot", "no connection open to", $self->{'Server'});
+	return 1;
+    }
+    my $fh = $self->{'Socket'};
+    print $fh "try GETQUOTAROOT $mailbox\n";
+    $_ = <$fh>;
+    while ((/\r$/) || (/\n$/)) {
+      chop;
+    }
+    while (/^\* QUOTA/) {
+	tr/\)\(//d;
+	@info = (split(' '))[2,4,5];
+	push @quota, @info;
+	$_ = <$fh>;
+        while ((/\r$/) || (/\n$/)) {
+          chop;
+        }
+    }
+    if (/^try OK/) {
+	return @quota;
+    } else {
+	$self->_error("get_quotaroot", "couldn't get quota for", $mailbox, ":", $_);
+	return;
     }
 }
 
@@ -393,8 +436,10 @@ IMAP::Admin - Perl module for basic IMAP server administration
   if ($err != 0) {
     print "$imap->{'Error'}\n";
   }
+  $err = $imap->create("user.bob", "green"); 
   $err = $imap->delete("user.bob");
 
+  @quota = $imap->get_quotaroot("user.bob");
   @quota = $imap->get_quota("user.bob");
   $err = $imap->set_quota("user.bob", 10000);
 
@@ -423,27 +468,22 @@ Operationally it opens a socket connection to the IMAP server and logs in with t
 RFC2060 commands.  These should work with any RFC2060 compliant IMAP mail servers.
 
 create makes new mailboxes.  Cyrus IMAP, for normal mailboxes, has the user. prefix.
-create returns a 0 on success or a 1 on failure.  An error message is placed in the
-object->{'Error'} variable on failure.
+create returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure. create takes an optional second argument that is the partition to create the mailbox in (this might be a Cyrus specific extension).
 
 delete destroys mailboxes.
-delete returns a 0 on success or a 1 on failure.  An error message is placed in the
-object->{'Error'} variable on failure.
+delete returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure.
 
 list lists mailboxes.  list accepts wildcard matching
 
-Currently create and delete only take one argument.  This will probably change in the future to allow for mass creation/destruction.
 
 =head2 QUOTA FUNCTIONS
 
 NOT RFC2060 commands.  I believe these are specific to Cyrus IMAP.
 
-get_quota retrieves quota information.  It returns an array on success and undef on failure.  In the event of a failure the error is place in the object->{'Error'} variable.  The array has three elements for each item in the quota. 
+get_quotaroot and get_quota retrieve quota information.  They return an array on success and undef on failure.  In the event of a failure the error is place in the object->{'Error'} variable.  The array has three elements for each item in the quota. 
 $quota[0] <- mailbox name
 $quota[1] <- quota amount used in kbytes
 $quota[2] <- quota in kbytes
-
-get_quota takes only one argument, but this will probably change to multiple and/or wildcard matching.
 
 set_quota sets the quota.  The number is in kilobytes so 10000 is approximately 10Meg.
 set_quota returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure.
@@ -474,11 +514,11 @@ Currently all the of the socket traffic is handled via prints and <>.  This mean
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.5 1999/03/13 01:14:05 eric Exp $
+$Id: Admin.pm,v 1.10 1999/10/16 16:07:25 eric Exp $
 
 =head1 AUTHOR
 
-Eric Estabrooks, estabroo@ispn.com
+Eric Estabrooks, eric@urbanrage.com
 
 =head1 SEE ALSO
 

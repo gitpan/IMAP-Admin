@@ -65,11 +65,34 @@ if ($err == 0) {
 } else {
 	print "not ok 4\n";
 }
+$err = $imap->create($testuser, "default");
+if ($err == 0) {
+	print "ok 5 : test user created with optional partition set to default\n";
+	if ($imap->{'Capability'} =~ /ACL/) {
+		print "pre6: IMAP server supports ACL, setting delete permission\n";
+		$err = $imap->set_acl($testuser, $login, "d");
+		if ($err == 0) {
+			print "ok pre6\n";
+		} else {
+			print "not ok pre6: $imap->{'Error'}\n";
+		}
+	} else {
+		print "pre6: IMAP server doesn't support ACL, trying delete directly\n";
+	}
+} else {
+	print "not ok 5: test user with optional partition argument failed, this might not be a problem\n";
+}
+$err = $imap->delete($testuser);
+if ($err == 0) {
+	print "ok 6\n";
+} else {
+	print "not ok 6, but if 5 failed this will fail as well -- $imap->{'Error'}\n";
+}
 undef @list;
 @list = $imap->list($testuser);
 if (!defined(@list)) {
-	print "ok 5: $imap->{'Error'}\n";
+	print "ok 7: $imap->{'Error'}\n";
 } else {
-	print "not ok 5: found [@list]\n";
+	print "not ok 7: found [@list]\n";
 }
 $imap->close;
