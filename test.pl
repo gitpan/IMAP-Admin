@@ -34,6 +34,14 @@ print "\n";
 system "stty echo";
 print "Test using SSL(y/n)? ";
 chomp($ssl = <>);
+print "Test using CRAM(y/n)? ";
+chomp($cram = <>);
+
+if ($cram eq "y") {
+    $cram = 1;
+} else {
+    $cram = 0;
+}
 
 if ($ssl ne "n") {
     print  "Enter Port#: ";
@@ -42,7 +50,7 @@ if ($ssl ne "n") {
 			     'SSL' => 1, 'SSL_ca_file' => "certs/ca-cert.pem",
 			     'Login' => $login, 'Password' => $password,);
 } else {
-    $imap = IMAP::Admin->new('Server' => $server, 
+    $imap = IMAP::Admin->new('Server' => $server, 'CRAM' => $cram, 
 			     'Login' => $login, 'Password' => $password);
 }
 

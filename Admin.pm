@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.34 2001/08/02 19:50:12 eric Exp $
+# $Id: Admin.pm,v 1.36 2001/11/06 02:17:17 eric Exp $
 
 package IMAP::Admin;
 
@@ -11,7 +11,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.5.1';
+$VERSION = '1.6.0';
 
 sub new {
   my $class = shift;
@@ -43,6 +43,10 @@ sub _initialize {
   }
   if (!defined($self->{'Password'})) {
     croak "$self->{'CLASS'} not initialized properly : Password parameter missing";
+  }
+  if (defined($self->{'CRAM'})) {
+      my $cram_try = "use Digest::HMAC; use Digest::MD5; use MIME::Base64;";
+      eval $cram_try;
   }
   if (defined($self->{'SSL'})) { # attempt SSL connection instead
     # construct array of ssl options
@@ -109,8 +113,13 @@ sub _initialize {
                   "[", $try, "]");
     return;
   }
+  # this section was changed to accomodate motd's
   print $fh "try CAPABILITY\n";
-  $self->{'Capability'} = $self->_read;
+  $try = $self->_read;
+  while ($try !~ /^\* CAPABILITY/) { # we have a potential lockup, should alarm this
+    $try = $self->_read;
+  }
+  $self->{'Capability'} = $try;
   $try = $self->_read;
   if ($try !~ /^try OK/) {
     $self->close;
@@ -118,7 +127,17 @@ sub _initialize {
                   $try, "]");
     return;
   }
-  print $fh qq{try LOGIN "$self->{'Login'}" "$self->{'Password'}"\n};
+  if ($self->{'CRAM'} > 0) {
+    if ($self->{'Capability'} =~ /CRAM-MD5/) {
+      _do_cram_login($self);
+    } else {
+      if ($self->{'CRAM'} > 1) {
+        print $fh qq{try LOGIN "$self->{'Login'}" "$self->{'Password'}"\n};
+      }
+    }
+  } else {
+    print $fh qq{try LOGIN "$self->{'Login'}" "$self->{'Password'}"\n};
+  }
   $try = $self->_read;
   if ($try !~ /^try OK/) { # should tr this response
     $self->close;
@@ -133,12 +152,32 @@ sub _initialize {
   return;
 }
 
+# this routine uses evals to prevent errors regarding missing modules
+sub _do_cram_login {
+  my $self = shift;
+  my $fh = $self->{'Socket'};
+  my $ans;
+
+  print $fh "try AUTHENTICATE CRAM-MD5\n";
+  my $try = $self->_read; # gets back the postal string
+  ($ans) = (split(' ', $try, 2))[1];
+  my $cram_eval = "
+   my \$hmac = Digest::HMAC->new(\$self->{'Password'}, 'Digest::MD5');
+   \$hmac->add(decode_base64(\$ans));
+   \$ans = encode_base64(\$self->{'Login'}.' '.\$hmac->hexdigest, '');
+  ";
+  eval $cram_eval;
+  print $fh "$ans\n";
+  return;
+}
+
 sub _error {
   my $self = shift;
   my $func = shift;
   my @error = @_;
   
   $self->{'Error'} = join(" ",$self->{'CLASS'}, "[", $func, "]:", @error);
+  return;
 }
 
 sub error {
@@ -317,10 +356,11 @@ sub get_quotaroot { # returns an array or undef
   print $fh qq{try GETQUOTAROOT "$mailbox"\n};
   my $try = $self->_read;
   while ($try =~ /^\* QUOTA/) {
-    next if ($try =~ /QUOTAROOT/); # some imap servers give this extra line
-    $try =~ tr/\)\(//d;
-    @info = (split(' ', $try))[2,4,5];
-    push @quota, @info;
+    if ($try !~ /QUOTAROOT/) { # some imap servers give this extra line
+        $try =~ tr/\)\(//d;
+        @info = (split(' ', $try))[2,4,5];
+        push @quota, @info;
+    }
     $try = $self->_read;
   }
   if ($try =~ /^try OK/) {
@@ -589,6 +629,7 @@ IMAP::Admin - Perl module for basic IMAP server administration
                            'Password' => 'password_of_imap_adminstrator',
                            'Port' => port# (143 is default),
                            'Separator' => ".", # default is a period
+                           'CRAM' => 1, # off by default
                            'SSL' => 1, # off by default
                            # and any of the SSL_ options from IO::Socket::SSL
                            );
@@ -634,6 +675,8 @@ It's interface should, in theory, work with any RFC compliant IMAP server, but I
 Operationally it opens a socket connection to the IMAP server and logs in with the supplied login and password.  You then can call any of the functions to perform their associated operation.
 
 Separator on the new call is the hiearchical separator used by the imap server.  It is defaulted to a period ("/" might be another popular one).
+
+CRAM on the new call will attempt to use CRAM-MD5 as the login type of choice.  A value of 0 means off, 1 means on, 2 means on with fallback to login.  *Note* this options requires these perl modules: Digest::MD5, Digest::HMAC, MIME::Base64
 
 SSL on the new call will attempt to make an SSL connection to the imap server.  It does not fallback to a regular connection if it fails.  It is off by default.  IO::Socket::SSL requires a ca certificate, a client certificate, and a client private key. By default these are in current_directory/certs, respectively named ca-cert.pem, client-cert.pem, and client-key.pem.  The location of this can be overridden by setting SSL_ca_file, SSL_cert_file, and SSL_key_file (you'll probably want to also set SSL_ca_path).
 
@@ -737,7 +780,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.34 2001/08/02 19:50:12 eric Exp $
+$Id: Admin.pm,v 1.36 2001/11/06 02:17:17 eric Exp $
 
 =head1 AUTHOR
 

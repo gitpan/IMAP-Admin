@@ -129,3 +129,12 @@ Revision history for Perl extension IMAP::Admin.
 
 1.5.1 Thu Aug  2 14:43:27 CDT 2001
   - bug report/fix (thanks to Paul Kranenburg) in get_quotaroot, removes extraneous line
+
+1.6.0 Sun Nov  4 10:19:44 CST 2001
+  - bug report/fix (thanks to Dylan Martin and Alain Turbide) for the 
+    botch I made of the get_quotaroot fix I made in 1.5.1
+  - bug report () motd's weren't handled, I put some code in that doesn't break
+    the current, but is also untested against motd's (feedback anyone?)
+  - added CRAM-MD5 support as an authentication method, send it in the new call
+    0 off, 1 on, 2 on with LOGIN fallback, this also adds the requirement of
+    Digest::MD5, Digest::HMAC, MIME::Base64 if you use this option
