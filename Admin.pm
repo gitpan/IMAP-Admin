@@ -1,4 +1,4 @@
-# $Id: Admin.pm,v 1.31 2000/11/29 06:06:44 eric Exp $
+# $Id: Admin.pm,v 1.32 2001/08/02 18:48:31 eric Exp $
 
 package IMAP::Admin;
 
@@ -6,565 +6,567 @@ use strict;
 use Carp;
 use IO::Select;
 use IO::Socket;
-use IO::Socket::INET;
-use Text::ParseWords qw(parse_line);
+#use IO::Socket::INET;
 use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.4.3';
+$VERSION = '1.5.0';
 
 sub new {
-    my $class = shift;
-    my $self = {};
-    my @defaults = (
-		    'Port' => 143,
-		    'Separator' => '.',
-		    );
+  my $class = shift;
+  my $self = {};
+  my @defaults = (
+                  'Port' => 143,
+                  'Separator' => '.',
+                  );
 
-    bless $self, $class;
-    if ((scalar(@_) % 2) != 0) {
-	croak "$class called with incorrect number of arguments";
-    }
-    unshift @_, @defaults;
-    %{$self} = @_; # set up parameters;
-    $self->{'CLASS'} = $class;
-    $self->_initialize;
-    return $self;
+  bless $self, $class;
+  if ((scalar(@_) % 2) != 0) {
+    croak "$class called with incorrect number of arguments";
+  }
+  unshift @_, @defaults;
+  %{$self} = @_; # set up parameters;
+  $self->{'CLASS'} = $class;
+  $self->_initialize;
+  return $self;
 }
 
 sub _initialize {
-    my $self = shift;
-    
-    if (!defined($self->{'Server'})) {
-	croak "$self->{'CLASS'} not initialized properly : Server parameter missing";
-    }
-    if (!defined($self->{'Login'})) {
-	croak "$self->{'CLASS'} not initialized properly : Login parameter missing";
-    }
-    if (!defined($self->{'Password'})) {
-	croak "$self->{'CLASS'} not initialized properly : Password parameter missing";
-    }
-    if (defined($self->{'SSL'})) { # attempt SSL connection instead
-	# construct array of ssl options
-	my $cwd = cwd;
-	my %ssl_defaults = (
-			    'SSL_use_cert' => 0,
-			    'SSL_verify_mode' => 0x00,
-			    'SSL_key_file' => $cwd."/certs/client-key.pem",
-			    'SSL_cert_file' => $cwd."/certs/client-cert.pem",
-			    'SSL_ca_path' => $cwd."/certs",
-			    'SSL_ca_file' => $cwd."/certs/ca-cert.pem",
-			    );
-	my @ssl_options;
-	my $ssl_key;
-	my $key;
-	foreach $ssl_key (keys(%ssl_defaults)) {
+  my $self = shift;
+  
+  if (!defined($self->{'Server'})) {
+    croak "$self->{'CLASS'} not initialized properly : Server parameter missing";
+  }
+  if (!defined($self->{'Login'})) {
+    croak "$self->{'CLASS'} not initialized properly : Login parameter missing";
+  }
+  if (!defined($self->{'Password'})) {
+    croak "$self->{'CLASS'} not initialized properly : Password parameter missing";
+  }
+  if (defined($self->{'SSL'})) { # attempt SSL connection instead
+    # construct array of ssl options
+    my $cwd = cwd;
+    my %ssl_defaults = (
+                        'SSL_use_cert' => 0,
+                        'SSL_verify_mode' => 0x00,
+                        'SSL_key_file' => $cwd."/certs/client-key.pem",
+                        'SSL_cert_file' => $cwd."/certs/client-cert.pem",
+                        'SSL_ca_path' => $cwd."/certs",
+                        'SSL_ca_file' => $cwd."/certs/ca-cert.pem",
+                        );
+    my @ssl_options;
+    my $ssl_key;
+    my $key;
+    foreach $ssl_key (keys(%ssl_defaults)) {
 	    if (!defined($self->{$ssl_key})) {
-		$self->{$ssl_key} = $ssl_defaults{$ssl_key};
+        $self->{$ssl_key} = $ssl_defaults{$ssl_key};
 	    }
-	}
-	foreach $ssl_key (keys(%{$self})) {
+    }
+    foreach $ssl_key (keys(%{$self})) {
 	    if ($ssl_key =~ /^SSL_/) {
-		push @ssl_options, $ssl_key, $self->{$ssl_key};
+        push @ssl_options, $ssl_key, $self->{$ssl_key};
 	    }
-	}
-	my $SSL_try = "use IO::Socket::SSL";
-
-        eval $SSL_try;
+    }
+    my $SSL_try = "use IO::Socket::SSL";
+    
+    eval $SSL_try;
 #	$IO::Socket::SSL::DEBUG = 1;
-	if (!eval {
+    if (!eval {
 	    $self->{'Socket'} = 
-	      IO::Socket::SSL->new(PeerAddr => $self->{'Server'},
-				   PeerPort => $self->{'Port'},
-				   Proto => 'tcp',
-				   Reuse => 1,
-				   Timeout => 5,
-				   @ssl_options); }) {
+      IO::Socket::SSL->new(PeerAddr => $self->{'Server'},
+                           PeerPort => $self->{'Port'},
+                           Proto => 'tcp',
+                           Reuse => 1,
+                           Timeout => 5,
+                           @ssl_options); }) {
 	    $self->_error("initialize", "couldn't establish SSL connection to",
-			  $self->{'Server'}, "[$!]");
+                    $self->{'Server'}, "[$!]");
 	    delete $self->{'Socket'};
 	    return;
-	}
-    } else {
-	if (!eval {
+    }
+  } else {
+    if (!eval {
 	    $self->{'Socket'} = 
-	      IO::Socket::INET->new(PeerAddr => $self->{'Server'},
-				    PeerPort => $self->{'Port'},
-				    Proto => 'tcp',
-				    Reuse => 1,
-				    Timeout => 5); })
-	{
-	    delete $self->{'Socket'};
-	    $self->_error("initialize", "couldn't establish connection to",
-			   $self->{'Server'});
-	    return;
+      IO::Socket::INET->new(PeerAddr => $self->{'Server'},
+                            PeerPort => $self->{'Port'},
+                            Proto => 'tcp',
+                            Reuse => 1,
+                            Timeout => 5); })
+      {
+        delete $self->{'Socket'};
+        $self->_error("initialize", "couldn't establish connection to",
+                      $self->{'Server'});
+        return;
 			  
-	}
-    }
-    my $fh = $self->{'Socket'};
-    my $try = $self->_read; # get Banner
-    if ($try !~ /\* OK/) {
-	$self->close;
-	$self->_error("initialize", "bad response from", $self->{'Server'},
-		      "[", $try, "]");
-	return;
-    }
-    print $fh "try CAPABILITY\n";
-    $self->{'Capability'} = $self->_read;
-    $try = $self->_read;
-    if ($try !~ /^try OK/) {
-	$self->close;
-	$self->_error("initialize", "Couldn't do a capabilites check [",
-		      $try, "]");
-	return;
-    }
-    print $fh qq{try LOGIN "$self->{'Login'}" "$self->{'Password'}"\n};
-    $try = $self->_read;
-    if ($try !~ /^try OK/) { # should tr this response
-	$self->close;
-	$self->_error("initialize", $try);
-	return;
-    } else { 
-	$self->{'Error'} = "No Errors";
-	return;
-    }
-    # fall thru, can it be hit ?
+      }
+  }
+  my $fh = $self->{'Socket'};
+  my $try = $self->_read; # get Banner
+  if ($try !~ /\* OK/) {
+    $self->close;
+    $self->_error("initialize", "bad response from", $self->{'Server'},
+                  "[", $try, "]");
+    return;
+  }
+  print $fh "try CAPABILITY\n";
+  $self->{'Capability'} = $self->_read;
+  $try = $self->_read;
+  if ($try !~ /^try OK/) {
+    $self->close;
+    $self->_error("initialize", "Couldn't do a capabilites check [",
+                  $try, "]");
+    return;
+  }
+  print $fh qq{try LOGIN "$self->{'Login'}" "$self->{'Password'}"\n};
+  $try = $self->_read;
+  if ($try !~ /^try OK/) { # should tr this response
+    $self->close;
+    $self->_error("initialize", $try);
+    return;
+  } else { 
     $self->{'Error'} = "No Errors";
     return;
+  }
+  # fall thru, can it be hit ?
+  $self->{'Error'} = "No Errors";
+  return;
 }
 
 sub _error {
-    my $self = shift;
-    my $func = shift;
-    my @error = @_;
-
-    $self->{'Error'} = join(" ",$self->{'CLASS'}, "[", $func, "]:", @error);
+  my $self = shift;
+  my $func = shift;
+  my @error = @_;
+  
+  $self->{'Error'} = join(" ",$self->{'CLASS'}, "[", $func, "]:", @error);
 }
 
 sub error {
-    my $self = shift;
-    return $self->{'Error'};
+  my $self = shift;
+  return $self->{'Error'};
 }
 
 sub _read {
-    my $self = shift;
-    my $buffer = "";
-    my $char = "";
-    my $bytes = 1;
-    while ($bytes == 1) {
-	$bytes = sysread $self->{'Socket'}, $char, 1;
-	if ($bytes == 0) {
+  my $self = shift;
+  my $buffer = "";
+  my $char = "";
+  my $bytes = 1;
+  while ($bytes == 1) {
+    $bytes = sysread $self->{'Socket'}, $char, 1;
+    if ($bytes == 0) {
 	    if (length ($buffer) != 0) {
-		return $buffer;
+        return $buffer;
 	    } else {
-		return;
+        return;
 	    }
-	} else {
+    } else {
 	    if (($char eq "\n") or ($char eq "\r")) {
-		if (length($buffer) == 0) {
-		    # cr or nl left over, just eat it
-		} else {
-		    return $buffer;
-		}
+        if (length($buffer) == 0) {
+          # cr or nl left over, just eat it
+        } else {
+          return $buffer;
+        }
 	    } else {
 #		print "got char [$char]\n";
-		$buffer .= $char;
+        $buffer .= $char;
 	    }
-	}
     }
+  }
 }
 
 sub close {
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return 0;
-    }
-    my $fh = $self->{'Socket'};
-    print $fh "try logout\n";
-    my $try = $self->_read;
-    close($self->{'Socket'});
-    delete $self->{'Socket'};
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
     return 0;
+  }
+  my $fh = $self->{'Socket'};
+  print $fh "try logout\n";
+  my $try = $self->_read;
+  close($self->{'Socket'});
+  delete $self->{'Socket'};
+  return 0;
 }
 
 sub create {
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if ((scalar(@_) != 1) && (scalar(@_) != 2)) {
-	$self->_error("create", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    if (scalar(@_) == 1) { # a partition exists
-	print $fh qq{try CREATE "$mailbox" $_[0]\n};
-    } else {
-	print $fh qq{try CREATE "$mailbox"\n};
-    }
-    my $try = $self->_read;
-    if ($try =~ /^try OK/) {
-	$self->{'Error'} = 'No Errors';
-	return 0;
-    } else {
-	$self->_error("create", "couldn't create", $mailbox, ":", $try);
-	return 1;
-    }
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if ((scalar(@_) != 1) && (scalar(@_) != 2)) {
+    $self->_error("create", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  if (scalar(@_) == 1) { # a partition exists
+    print $fh qq{try CREATE "$mailbox" $_[0]\n};
+  } else {
+    print $fh qq{try CREATE "$mailbox"\n};
+  }
+  my $try = $self->_read;
+  if ($try =~ /^try OK/) {
+    $self->{'Error'} = 'No Errors';
+    return 0;
+  } else {
+    $self->_error("create", "couldn't create", $mailbox, ":", $try);
+    return 1;
+  }
 }
 
 sub rename {
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if (scalar(@_) != 2) {
-	$self->_error("rename", "incorrect number of arguments");
-	return 1;
-    }
-    my $old_name = shift;
-    my $new_name = shift;
-
-    my $fh = $self->{'Socket'};
-    print $fh qq{try RENAME "$old_name" "$new_name"\n};
-    my $try = $self->_read;
-    if ($try =~ /^try OK/) {
-	$self->{'Error'} = 'No Errors';
-	return 0;
-    } else {
-	$self->_error("rename", "couldn't rename", $old_name, "to", $new_name,
-		      ":", $try);
-	return 1;
-    }
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (scalar(@_) != 2) {
+    $self->_error("rename", "incorrect number of arguments");
+    return 1;
+  }
+  my $old_name = shift;
+  my $new_name = shift;
+  
+  my $fh = $self->{'Socket'};
+  print $fh qq{try RENAME "$old_name" "$new_name"\n};
+  my $try = $self->_read;
+  if ($try =~ /^try OK/) {
+    $self->{'Error'} = 'No Errors';
+    return 0;
+  } else {
+    $self->_error("rename", "couldn't rename", $old_name, "to", $new_name,
+                  ":", $try);
+    return 1;
+  }
 }
 
 sub delete {
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if (scalar(@_) != 1) {
-	$self->_error("delete", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    print $fh qq{try DELETE "$mailbox"\n};
-    my $try = $self->_read;
-    if ($try =~ /^try OK/) {
-	$self->{'Error'} = 'No Errors';
-	return 0;
-    } else {
-	$self->_error("delete", "couldn't delete", $mailbox, ":", $try);
-	return 1;
-    }
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("delete", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try DELETE "$mailbox"\n};
+  my $try = $self->_read;
+  if ($try =~ /^try OK/) {
+    $self->{'Error'} = 'No Errors';
+    return 0;
+  } else {
+    $self->_error("delete", "couldn't delete", $mailbox, ":", $try);
+    return 1;
+  }
 }
 
 sub h_delete {
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if (scalar(@_) != 1) {
-	$self->_error("h_delete", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    # first get a list of all sub boxes then nuke them, accumulate errors
-    # then do something intelligent with them (hmmmmm)
-    my $box = join($self->{'Separator'}, $mailbox, "*");
-    my @sub_boxes = $self->list($box);
-    push @sub_boxes, $mailbox;
-    # uncomment following line if you are sanity checking h_delete
-    # print "h_delete: got this list of sub boxes [@sub_boxes]\n";
-    foreach $box (@sub_boxes) {
-	print $fh qq{try DELETE "$box"\n};
-	my $try = $self->_read;
-	if ($try =~ /^try OK/) {
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("h_delete", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  # first get a list of all sub boxes then nuke them, accumulate errors
+  # then do something intelligent with them (hmmmmm)
+  my $box = join($self->{'Separator'}, $mailbox, "*");
+  my @sub_boxes = $self->list($box);
+  push @sub_boxes, $mailbox;
+  # uncomment following line if you are sanity checking h_delete
+  # print "h_delete: got this list of sub boxes [@sub_boxes]\n";
+  foreach $box (@sub_boxes) {
+    print $fh qq{try DELETE "$box"\n};
+    my $try = $self->_read;
+    if ($try =~ /^try OK/) {
 	    $self->{'Error'} = 'No Errors';
-	} else {
+    } else {
 	    $self->_error("h_delete", "couldn't delete", 
-			  $mailbox, ":", $try);
+                    $mailbox, ":", $try);
 	    return 1; # or just return on the first encountered error ?
-	}
     }
-    return 0;
+  }
+  return 0;
 }
 
 sub get_quotaroot { # returns an array or undef
-    my $self = shift;
-    my (@quota, @info);
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if (!($self->{'Capability'} =~ /QUOTA/)) {
-	$self->_error("get_quotaroot", "QUOTA not listed in server's capabilities");
-	return 1;
-    }
-    if (scalar(@_) != 1) {
-	$self->_error("get_quotaroot", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    print $fh qq{try GETQUOTAROOT "$mailbox"\n};
-    my $try = $self->_read;
-    while ($try =~ /^\* QUOTA/) {
-	$try =~ tr/\)\(//d;
-	@info = (split(' ', $try))[2,4,5];
-	push @quota, @info;
-	$try = $self->_read;
-    }
-    if ($try =~ /^try OK/) {
-	return @quota;
-    } else {
-	$self->_error("get_quotaroot", "couldn't get quota for", $mailbox, ":", $try);
-	return;
-    }
+  my $self = shift;
+  my (@quota, @info);
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (!($self->{'Capability'} =~ /QUOTA/)) {
+    $self->_error("get_quotaroot", "QUOTA not listed in server's capabilities");
+    return 1;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("get_quotaroot", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try GETQUOTAROOT "$mailbox"\n};
+  my $try = $self->_read;
+  while ($try =~ /^\* QUOTA/) {
+    $try =~ tr/\)\(//d;
+    @info = (split(' ', $try))[2,4,5];
+    push @quota, @info;
+    $try = $self->_read;
+  }
+  if ($try =~ /^try OK/) {
+    return @quota;
+  } else {
+    $self->_error("get_quotaroot", "couldn't get quota for", $mailbox, ":", $try);
+    return;
+  }
 }
 
 sub get_quota { # returns an array or undef
-    my $self = shift;
-    my (@quota, @info);
-
-    if (!defined($self->{'Socket'})) {
-	return;
-    }
-    if (!($self->{'Capability'} =~ /QUOTA/)) {
-	$self->_error("get_quota", 
-		      "QUOTA not listed in server's capabilities");
-	return;
-    }
-    if (scalar(@_) != 1) {
-	$self->_error("get_quota", "incorrect number of arguments");
-	return;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    print $fh qq{try GETQUOTA "$mailbox"\n};
-    my $try = $self->_read;
-    while ($try =~ /^\* QUOTA/) {
-	$try =~ tr/\)\(//d;
-	@info = (split(' ',$try))[2,4,5];
-	push @quota, @info;
-	$try = $self->_read;
-    }
-    if ($try =~ /^try OK/) {
-	return @quota;
-    } else {
-	$self->_error("get_quota", "couldn't get quota for", $mailbox, ":", $try);
-	return;
-    }
+  my $self = shift;
+  my (@quota, @info);
+  
+  if (!defined($self->{'Socket'})) {
+    return;
+  }
+  if (!($self->{'Capability'} =~ /QUOTA/)) {
+    $self->_error("get_quota", 
+                  "QUOTA not listed in server's capabilities");
+    return;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("get_quota", "incorrect number of arguments");
+    return;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try GETQUOTA "$mailbox"\n};
+  my $try = $self->_read;
+  while ($try =~ /^\* QUOTA/) {
+    $try =~ tr/\)\(//d;
+    @info = (split(' ',$try))[2,4,5];
+    push @quota, @info;
+    $try = $self->_read;
+  }
+  if ($try =~ /^try OK/) {
+    return @quota;
+  } else {
+    $self->_error("get_quota", "couldn't get quota for", $mailbox, ":", $try);
+    return;
+  }
 }
 
 sub set_quota {
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if (!($self->{'Capability'} =~ /QUOTA/)) {
-	$self->_error("set_quota", "QUOTA not listed in server's capabilities");
-	return 1;
-    }
-    if (scalar(@_) != 2) {
-	$self->_error("set_quota", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $quota = shift;
-    my $fh = $self->{'Socket'};
-    if ($quota eq "none") {
-	print $fh qq{try SETQUOTA "$mailbox" ()\n};
-    } else {
-	print $fh qq{try SETQUOTA "$mailbox" (STORAGE $quota)\n};
-    }
-    my $try = $self->_read;
-    if ($try =~ /^try OK/) {
-	$self->{'Error'} = "No Errors";
-	return 0;
-    } else {
-	$self->_error("set_quota", "couldn't set quota for", $mailbox, ":", $try);
-	return 1;
-    }
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (!($self->{'Capability'} =~ /QUOTA/)) {
+    $self->_error("set_quota", "QUOTA not listed in server's capabilities");
+    return 1;
+  }
+  if (scalar(@_) != 2) {
+    $self->_error("set_quota", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $quota = shift;
+  my $fh = $self->{'Socket'};
+  if ($quota eq "none") {
+    print $fh qq{try SETQUOTA "$mailbox" ()\n};
+  } else {
+    print $fh qq{try SETQUOTA "$mailbox" (STORAGE $quota)\n};
+  }
+  my $try = $self->_read;
+  if ($try =~ /^try OK/) {
+    $self->{'Error'} = "No Errors";
+    return 0;
+  } else {
+    $self->_error("set_quota", "couldn't set quota for", $mailbox, ":", $try);
+    return 1;
+  }
 }
 
 sub subscribe {
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if (scalar(@_) != 1) {
-	$self->_error("subscribe", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    print $fh qq{try SUBSCRIBE "$mailbox"\n};
-    my $try = $self->_read;
-    if ($try !~ /^try OK/) {
-	$self->_error("subscribe", "couldn't suscribe ", $mailbox, ":",
-		      $try);
-	return 1;
-    }
-    $self->{'Error'} = 'No Errors';
-    return 0;
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("subscribe", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try SUBSCRIBE "$mailbox"\n};
+  my $try = $self->_read;
+  if ($try !~ /^try OK/) {
+    $self->_error("subscribe", "couldn't suscribe ", $mailbox, ":",
+                  $try);
+    return 1;
+  }
+  $self->{'Error'} = 'No Errors';
+  return 0;
 }
 
 sub unsubscribe {
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if (scalar(@_) != 1) {
-	$self->_error("unsubscribe", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    print $fh qq{try UNSUBSCRIBE "$mailbox"\n};
-    my $try = $self->_read;
-    if ($try !~ /^try OK/) {
-	$self->_error("unsubscribe", "couldn't unsuscribe ", $mailbox, ":",
-		      $try);
-	return 1;
-    }
-    $self->{'Error'} = 'No Errors';
-    return 0;
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("unsubscribe", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try UNSUBSCRIBE "$mailbox"\n};
+  my $try = $self->_read;
+  if ($try !~ /^try OK/) {
+    $self->_error("unsubscribe", "couldn't unsuscribe ", $mailbox, ":",
+                  $try);
+    return 1;
+  }
+  $self->{'Error'} = 'No Errors';
+  return 0;
 }
 
 
 sub get_acl { # returns an array or undef
-    my $self = shift;
-
-    if (!defined($self->{'Socket'})) {
-	return;
-    }
-    if (!($self->{'Capability'} =~ /ACL/)) {
-	$self->_error("get_acl", "ACL not listed in server's capabilities");
-	return;
-    }
-    if (scalar(@_) != 1) {
-	$self->_error("get_acl", "incorrect number of arguments");
-	return;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    print $fh qq{try GETACL "$mailbox"\n};
-    delete $self->{'acl'};
-    my $try = $self->_read;
-    while ($try =~ /^\* ACL\s+(?:\".*?\"|.*?)\s+((\".*?\"|.*?)(?:\s)(?{ push @{$self->{'acl'}}, $2; }))+(\w+)(?{ push @{$self->{'acl'}}, $3; })$/) {
-	$try = $self->_read;
-    }
-    if ($try =~ /^try OK/) {
-	return @{$self->{'acl'}};
-    } else {
-	$self->_error("get_acl", "couldn't get acl for", $mailbox, ":", $try);
-	return;
-    }
+  my $self = shift;
+  
+  if (!defined($self->{'Socket'})) {
+    return;
+  }
+  if (!($self->{'Capability'} =~ /ACL/)) {
+    $self->_error("get_acl", "ACL not listed in server's capabilities");
+    return;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("get_acl", "incorrect number of arguments");
+    return;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try GETACL "$mailbox"\n};
+  delete $self->{'acl'};
+  my $try = $self->_read;
+  while ($try =~ /^\*\s+ACL\s+/) {
+    my $acls = ($try =~ /^\* ACL\s+(?:\".*?\"|\S*)\s+(.*)/)[0]; # separate out the acls
+    my @acls = ($acls =~ /(\".*?\"|\S+)\s*/g); # split up over ws, unless quoted
+    push @{$self->{'acl'}}, @acls;
+    $try = $self->_read;
+  }
+  if ($try =~ /^try OK/) {
+    return @{$self->{'acl'}};
+  } else {
+    $self->_error("get_acl", "couldn't get acl for", $mailbox, ":", $try);
+    return;
+  }
 }
 
 sub set_acl {
-    my $self = shift;
-    my ($id, $acl);
-
-    if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-    if (!($self->{'Capability'} =~ /ACL/)) {
-	$self->_error("set_acl", "ACL not listed in server's capabilities");
-	return 1;
-    }
-    if (scalar(@_) < 2) {
-	$self->_error("set_acl", "too few arguments");
-	return 1;
-    }
-    if ((scalar(@_) % 2) == 0) {
-	$self->_error("set_acl", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    while(@_) {
-	$id = shift;
-	$acl = shift;
-	print $fh qq{try SETACL "$mailbox" "$id" "$acl"\n};
-	my $try = $self->_read;
-	if ($try !~ /^try OK/) {
+  my $self = shift;
+  my ($id, $acl);
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (!($self->{'Capability'} =~ /ACL/)) {
+    $self->_error("set_acl", "ACL not listed in server's capabilities");
+    return 1;
+  }
+  if (scalar(@_) < 2) {
+    $self->_error("set_acl", "too few arguments");
+    return 1;
+  }
+  if ((scalar(@_) % 2) == 0) {
+    $self->_error("set_acl", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  while(@_) {
+    $id = shift;
+    $acl = shift;
+    print $fh qq{try SETACL "$mailbox" "$id" "$acl"\n};
+    my $try = $self->_read;
+    if ($try !~ /^try OK/) {
 	    $self->_error("set_acl", "couldn't set acl for", $mailbox, $id, 
-			 $acl, ":", $try);
+                    $acl, ":", $try);
 	    return 1;
-	}
     }
-    $self->{'Error'} = 'No Errors';
-    return 0;
+  }
+  $self->{'Error'} = 'No Errors';
+  return 0;
 }
 
 sub delete_acl {
-    my $self = shift;
-    my ($id, $acl);
-
-     if (!defined($self->{'Socket'})) {
-	return 1;
-    }
-   if (!($self->{'Capability'} =~ /ACL/)) {
-	$self->_error("delete_acl", "ACL not listed in server's capabilities");
-	return 1;
-    }
-    if (scalar(@_) < 1) {
-	$self->_error("delete_acl", "incorrect number of arguments");
-	return 1;
-    }
-    my $mailbox = shift;
-    my $fh = $self->{'Socket'};
-    while(@_) {
-	$id = shift;
-	print $fh qq{try DELETEACL "$mailbox" "$id"\n};
-	my $try = $self->_read;
-	if ($try !~ /^try OK/) {
+  my $self = shift;
+  my ($id, $acl);
+  
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (!($self->{'Capability'} =~ /ACL/)) {
+    $self->_error("delete_acl", "ACL not listed in server's capabilities");
+    return 1;
+  }
+  if (scalar(@_) < 1) {
+    $self->_error("delete_acl", "incorrect number of arguments");
+    return 1;
+  }
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  while(@_) {
+    $id = shift;
+    print $fh qq{try DELETEACL "$mailbox" "$id"\n};
+    my $try = $self->_read;
+    if ($try !~ /^try OK/) {
 	    $self->_error("delete_acl", "couldn't delete acl for", $mailbox,
-			  $id, $acl, ":", $try);
+                    $id, $acl, ":", $try);
 	    return 1;
-	}
     }
-    return 0;
+  }
+  return 0;
 }
 
 sub list { # wild cards are allowed, returns array or undef
-    my $self = shift;
-    my (@info, @mail);
-
-    if (!defined($self->{'Socket'})) {
-	return;
-    }
-    if (scalar(@_) != 1) {
-	$self->_error("list", "incorrect number of arguments");
-	return;
-    }
-    my $list = shift;
-    my $fh = $self->{'Socket'};
-    print $fh qq{try LIST "" "$list"\n};
-    my $try = $self->_read;
-    while ($try =~ /^\* LIST.*?\) \".\" \"*(.*?)\"*$/) { # danger danger (could lock up needs timeout) " <- this quote makes emacs happy
-	push @mail, $1;
-	$try = $self->_read;
-    }
-    if ($try =~ /^try OK/) {
-	return @mail;
-    } else {
-	$self->_error("list", "couldn't get list for", $list, ":", $try);
-	return;
-    }
+  my $self = shift;
+  my (@info, @mail);
+  
+  if (!defined($self->{'Socket'})) {
+    return;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("list", "incorrect number of arguments");
+    return;
+  }
+  my $list = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try LIST "" "$list"\n};
+  my $try = $self->_read;
+  while ($try =~ /^\* LIST.*?\) \".\" \"*(.*?)\"*$/) { # danger danger (could lock up needs timeout) " <- this quote makes emacs happy
+    push @mail, $1;
+    $try = $self->_read;
+  }
+  if ($try =~ /^try OK/) {
+    return @mail;
+  } else {
+    $self->_error("list", "couldn't get list for", $list, ":", $try);
+    return;
+  }
 }
 
 
@@ -582,20 +584,20 @@ IMAP::Admin - Perl module for basic IMAP server administration
   use IMAP::Admin;
     
   $imap = IMAP::Admin->new('Server' => 'name.of.server.com',
-			   'Login' => 'login_of_imap_administrator',
-			   'Password' => 'password_of_imap_adminstrator',
-			   'Port' => port# (143 is default),
-			   'Separator' => ".", # default is a period
-			   'SSL' => 1, # off by default
-			   # and any of the SSL_ options from IO::Socket::SSL
-			   );
+                           'Login' => 'login_of_imap_administrator',
+                           'Password' => 'password_of_imap_adminstrator',
+                           'Port' => port# (143 is default),
+                           'Separator' => ".", # default is a period
+                           'SSL' => 1, # off by default
+                           # and any of the SSL_ options from IO::Socket::SSL
+                           );
 
   $err = $imap->create("user.bob");
   if ($err != 0) {
     print "$imap->{'Error'}\n";
   }
   if ($err != 0) {
-      print $imap->error;
+    print $imap->error;
   }
   $err = $imap->create("user.bob", "green"); 
   $err = $imap->delete("user.bob");
@@ -611,6 +613,7 @@ IMAP::Admin - Perl module for basic IMAP server administration
   $err = $imap->set_quota("user.bob", 10000);
 
   @acl = $imap->get_acl("user.bob");
+  %acl = $imap->get_acl("user.bob");
   $err = $imap->set_acl("user.bob", "admin", "lrswipdca", "joe", "lrs");
   $err = $imap->delete_acl("user.bob", "joe", "admin");
  
@@ -699,6 +702,8 @@ $acl[0] user who has acl information
 $acl[1] acl information
 $acl[2] next user ...
 
+You could also treat the return from get_acl as a hash, in which case the user is the key and the acl information is the value.
+
 set_acl set acl information for a single mailbox.  You can specify more the one user's rights on the same set call.  It returns a 0 on success or a 1 on failure.  An error message is placed in the object->{'Error'} variable on failure.
 
 delete_acl removes acl information on a single mailbox for the given users.  You can specify more the one users rights to be removed in the same delete_acl call.  It returns a 0 on success or a 1 on failure.  An error message is placed int the object->{'Error'} variable on failure.
@@ -731,7 +736,7 @@ This is licensed under the Artistic license (same as perl).  A copy of the licen
 
 =head1 CVS REVISION
 
-$Id: Admin.pm,v 1.31 2000/11/29 06:06:44 eric Exp $
+$Id: Admin.pm,v 1.32 2001/08/02 18:48:31 eric Exp $
 
 =head1 AUTHOR
 

@@ -111,3 +111,18 @@ Revision history for Perl extension IMAP::Admin.
 	- bug report/fix (again thanks to Marc) delete was calling incorrect read
 	  function
 
+1.5.0 Thu Aug  2 12:50:21 CDT 2001
+  - re-formatted to make vi friendly (I use emacs and vi, but mostly emacs)
+    added these lines to my .emacs to keep it friendly
+    (custom-set-variables
+     '(perl-indent-level 2)
+     '(perl-continued-statement-offset 2)
+     '(perl-continued-brace-offset 0)
+     '(indent-tabs-mode nil)
+     '(tab-width 2))
+    basically sets the indent level to 2 and converts tabs to spaces
+    of course this will hose some diffs (unless you ignore whitespace diffs)
+  - bug report/fix (thanks to Lupe Christoph) some older perls don't
+    support (?{ code }), so get_acl splitting expression was re-vamped.
+  - removed use IO::Socket::INET (again some older perls)
+  - removed Text::Parsewords dependency (wasn't using it anymore anyway)
