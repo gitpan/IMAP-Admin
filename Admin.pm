@@ -11,7 +11,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.6.4';
+$VERSION = '1.6.6';
 
 sub new {
   my $class = shift;
@@ -91,19 +91,30 @@ sub _initialize {
 	    return;
     }
   } else {
-    if (!eval {
-	    $self->{'Socket'} = 
-      IO::Socket::INET->new(PeerAddr => $self->{'Server'},
-                            PeerPort => $self->{'Port'},
-                            Proto => 'tcp',
-                            Reuse => 1,
-                            Timeout => 5); })
-      {
-        delete $self->{'Socket'};
-        $self->_error("initialize", "couldn't establish connection to",
-                      $self->{'Server'});
-        return;
-			  
+    if ($self->{'Server'} =~ /^\//) {
+        if (!eval {
+            $self->{'Socket'} = 
+        IO::Socket::UNIX->new(Peer => $self->{'Server'}); })
+        {
+            delete $self->{'Socket'};
+            $self->_error("initialize", "couldn't establish connection to",
+                        $self->{'Server'});
+            return;
+        }
+      } else {
+          if (!eval {
+              $self->{'Socket'} = 
+          IO::Socket::INET->new(PeerAddr => $self->{'Server'},
+                                  PeerPort => $self->{'Port'},
+                                  Proto => 'tcp',
+                                  Reuse => 1,
+                                  Timeout => 5); })
+          {
+              delete $self->{'Socket'};
+              $self->_error("initialize", "couldn't establish connection to",
+                          $self->{'Server'});
+              return;
+          }
       }
   }
   my $fh = $self->{'Socket'};
@@ -486,6 +497,61 @@ sub unsubscribe {
   return 0;
 }
 
+sub select { # returns an array or undef
+  my $self = shift;
+  my @info;
+
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (scalar(@_) != 1) {
+    $self->_error("select", "incorrect number of arguments");
+    return;
+  }
+
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try SELECT "$mailbox"\n};
+  my $try = $self->_read;
+  while ($try =~ /^\* (.*)/) { # danger danger (could lock up needs timeout)
+    push @info, $1;
+    $try = $self->_read;
+  }
+  if ($try =~ /^try OK/) {
+    return @info;
+  } else {
+    $self->_error("select", "couldn't select", $mailbox, ":", $try);
+    return;
+  }
+}
+
+sub expunge { # returns an array or undef
+  my $self = shift;
+  my @info;
+
+  if (!defined($self->{'Socket'})) {
+    return 1;
+  }
+  if (scalar(@_) != 0) {
+    $self->_error("expunge", "incorrect number of arguments");
+    return;
+  }
+
+  my $mailbox = shift;
+  my $fh = $self->{'Socket'};
+  print $fh qq{try EXPUNGE\n};
+  my $try = $self->_read;
+  while ($try =~ /^\* (.*)/) { # danger danger (could lock up needs timeout)
+    push @info, $1;
+    $try = $self->_read;
+  }
+  if ($try =~ /^try OK/) {
+    return @info;
+  } else {
+    $self->_error("expunge", "couldn't expunge", $mailbox, ":", $try);
+    return;
+  }
+}
 
 sub get_acl { # returns an array or undef
   my $self = shift;
@@ -683,6 +749,8 @@ CRAM on the new call will attempt to use CRAM-MD5 as the login type of choice.  
 
 SSL on the new call will attempt to make an SSL connection to the imap server.  It does not fallback to a regular connection if it fails.  It is off by default.  IO::Socket::SSL requires a ca certificate, a client certificate, and a client private key. By default these are in current_directory/certs, respectively named ca-cert.pem, client-cert.pem, and client-key.pem.  The location of this can be overridden by setting SSL_ca_file, SSL_cert_file, and SSL_key_file (you'll probably want to also set SSL_ca_path).
 
+If you start the name of the server with a / instead of using tcp/ip it'll attempt to use a unix socket.
+
 I generated my ca cert and ca key with openssl:
  openssl req -x509 -newkey rsa:1024 -keyout ca-key.pem -out ca-cert.pem
 
@@ -724,6 +792,26 @@ list lists mailboxes.  list accepts wildcard matching
 subscribe/unsubscribe does this action on given mailbox.
 
 rename renames a mailbox.  IMAP servers seem to be peculiar about how they implement this, so I wouldn't necessarily expect it to do what you think it should.
+
+select selects a mailbox to work on. You need the 'r' acl to select a mailbox.
+This command selects a mailbox that mailbox related commands will be performed on.  This is not a recursive command so sub-mailboxes/folders will not be affected unless for some bizarre reason the IMAP server has it implemented as recursive.  It returns an error or an array that contains information about the mailbox.  For example:
+FLAGS (\Answered \Flagged \Draft \Deleted \Seen $Forwarded $MDNSent NonJunk Junk $Label7)
+OK [PERMANENTFLAGS (\Deleted)]  
+2285 EXISTS
+2285 RECENT
+OK [UNSEEN 1]  
+OK [UIDVALIDITY 1019141395]  
+OK [UIDNEXT 293665]  
+OK [READ-WRITE] Completed
+
+expunge permanently removes messages flagged with \Deleted out of the current selected mailbox.
+It returns a list of message sequence numbers that it deleted.  You need to select a mailbox before you expunge. You need to read section 7.4.1 of RFC2060 to interpret the output.  Essentially each time a message is deleted the sequence numbers all get decremented so you can see the same message sequence number several times in the list of deleted messages.  In the following example (taken from the RFC) messages 3, 4, 7, and 11 were deleted:
+* 3 EXPUNGE
+* 3 EXPUNGE
+* 5 EXPUNGE
+* 8 EXPUNGE
+. OK EXPUNGE completed
+
 
 =head2 QUOTA FUNCTIONS
 
