@@ -11,7 +11,7 @@ use Cwd;
 
 use vars qw($VERSION);
 
-$VERSION = '1.6.6';
+$VERSION = '1.6.7';
 
 sub new {
   my $class = shift;
@@ -276,17 +276,22 @@ sub rename {
   if (!defined($self->{'Socket'})) {
     return 1;
   }
-  if (scalar(@_) != 2) {
+  if ((scalar(@_) != 2) && (scalar(@_) != 3)) {
     $self->_error("rename", "incorrect number of arguments");
     return 1;
   }
   my $old_name = shift;
   my $new_name = shift;
+  my $partition = shift;
   
   my $fh = $self->{'Socket'};
-  print $fh qq{try RENAME "$old_name" "$new_name"\n};
+  if (defined $partition) {
+    print $fh qq{try RENAME "$old_name" "$new_name" $partition\n};
+  } else {
+    print $fh qq{try RENAME "$old_name" "$new_name"\n};
+  }
   my $try = $self->_read;
-  if ($try =~ /^try OK/) {
+  if (($try =~ /^try OK/) || ($try =~ /^\* OK/)) {
     $self->{'Error'} = 'No Errors';
     return 0;
   } else {
@@ -718,6 +723,7 @@ IMAP::Admin - Perl module for basic IMAP server administration
   $err = $imap->unsubscribe("user.bob");
 
   $err = $imap->rename("bboard", "newbboard");
+  $err = $imap->rename("bboard", "newbboard", "partition");
 
   @quota = $imap->get_quotaroot("user.bob");
   @quota = $imap->get_quota("user.bob");
@@ -791,7 +797,7 @@ list lists mailboxes.  list accepts wildcard matching
 
 subscribe/unsubscribe does this action on given mailbox.
 
-rename renames a mailbox.  IMAP servers seem to be peculiar about how they implement this, so I wouldn't necessarily expect it to do what you think it should.
+rename renames a mailbox.  IMAP servers seem to be peculiar about how they implement this, so I wouldn't necessarily expect it to do what you think it should. The Cyrus IMAP server will move a renamed mailbox to the default partition unless a partition is given. You can optionally supply a partition name as an extra argument to this function.
 
 select selects a mailbox to work on. You need the 'r' acl to select a mailbox.
 This command selects a mailbox that mailbox related commands will be performed on.  This is not a recursive command so sub-mailboxes/folders will not be affected unless for some bizarre reason the IMAP server has it implemented as recursive.  It returns an error or an array that contains information about the mailbox.  For example:
